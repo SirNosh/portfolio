@@ -1,0 +1,38 @@
+.custom-cursor {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    /* Center cursor? Or tip? */
+    /* Usually pickaxe tip is top-left, but image might be centered. 
+     Minecraft pickaxe texture is usually 16x16 with tool diagonal.
+     We want the "hit point" to be intuitive. 
+     Let's assume the image is standard and handle offset. */
+    transform-origin: bottom right;
+    /* Rotate around handle? No, rotate around hand */
+    width: 64px;
+    /* Scaled up */
+    height: 64px;
+}
+
+.custom-cursor img {
+    width: 100%;
+    height: 100%;
+}
+
+/* Default state: slightly angled? Standard texture is usually upright diagonal. */
+
+/* Mining Animation: Swing */
+.custom-cursor.mining {
+    animation: mineSwing 0.2s infinite alternate;
+}
+
+@keyframes mineSwing {
+    0% {
+        transform: translate(-20%, -20%) rotate(0deg);
+    }
+
+    100% {
+        transform: translate(-20%, -20%) rotate(-45deg);
+    }
+}

@@ -1,0 +1,104 @@
+.app-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Backgrounds */
+.layer-stone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/assets/textures/stone.png');
+  background-size: 64px;
+  /* Scale up texture */
+  image-rendering: pixelated;
+  z-index: 1;
+}
+
+
+
+.vignette {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.8) 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Content */
+.content {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 4rem;
+}
+
+/* Sign */
+.sign-board {
+  background-image: url('/assets/textures/oak_planks.png');
+  background-size: 64px;
+  padding: 2.5rem 6rem;
+  /* Increased padding */
+  border: 4px solid #3d2e18;
+  /* Dark wood color */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+  text-align: center;
+  image-rendering: pixelated;
+  position: relative;
+  transform: scale(1.5);
+  /* Scale up the whole sign */
+}
+
+.sign-board::before,
+.sign-board::after {
+  /* Optional: chains or posts? */
+  content: '';
+}
+
+.sign-text {
+  font-size: 3rem;
+  color: black;
+  text-shadow: 2px 2px 0px rgba(180, 180, 180, 0.5);
+  margin-bottom: 0.5rem;
+}
+
+.sign-subtext {
+  font-size: 1.2rem;
+  color: #333;
+}
+
+/* Ores */
+.ore-container {
+  display: flex;
+  gap: 4rem;
+  align-items: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .ore-container {
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .layer-stone {
+    height: 100%;
+  }
+
+  .layer-deepslate {
+    display: none;
+  }
+
+  /* Just use one backing on mobile? Or split vertically? */
+}

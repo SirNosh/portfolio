@@ -1,0 +1,123 @@
+.home-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Backgrounds */
+.layer-stone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('/assets/textures/stone.png');
+    background-size: 64px 64px;
+    /* Tile at 64px */
+    image-rendering: pixelated;
+    z-index: 1;
+}
+
+.vignette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.85) 100%);
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* Content - Centered */
+.content {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 3rem;
+    /* Reduced gap */
+}
+
+/* Sign */
+.sign-board {
+    background-image: url('/assets/textures/oak_planks.png');
+    background-size: 32px 32px;
+    /* Smaller tiles for sign texture */
+    padding: 1.5rem 4rem;
+    border: 4px solid #3d2e18;
+    box-shadow:
+        inset 2px 2px 0 rgba(255, 255, 255, 0.2),
+        inset -2px -2px 0 rgba(0, 0, 0, 0.3),
+        0 8px 16px rgba(0, 0, 0, 0.7);
+    text-align: center;
+    image-rendering: pixelated;
+    position: relative;
+    transform: scale(1.3);
+    /* Slightly smaller scale */
+    cursor: auto;
+    /* Show default cursor on sign */
+}
+
+.sign-text {
+    font-size: 2.5rem;
+    color: #1a1a1a;
+    text-shadow: 1px 1px 0px rgba(200, 200, 200, 0.4);
+    margin-bottom: 0.25rem;
+}
+
+.sign-subtext {
+    font-size: 1rem;
+    color: #000000;
+    margin-top: -2px;
+}
+
+.sign-links {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.sign-links a {
+    color: #1a1a1a;
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+    transition: all 0.2s;
+}
+
+.sign-links a:hover {
+    color: #000;
+    text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Ores Container - Spread across the wall */
+.ore-container {
+    display: flex;
+    gap: 0;
+    /* No gap - ores are part of the wall */
+    align-items: center;
+    justify-content: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .ore-container {
+        flex-direction: column;
+    }
+
+    .sign-board {
+        transform: scale(1);
+        padding: 1rem 2rem;
+    }
+
+    .sign-text {
+        font-size: 1.8rem;
+    }
+}

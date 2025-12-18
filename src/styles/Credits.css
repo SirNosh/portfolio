@@ -1,0 +1,168 @@
+.credits-page {
+    position: relative;
+    width: 100vw;
+    min-height: 100vh;
+    background: linear-gradient(180deg, #000000 0%, #0a0a1a 50%, #000000 100%);
+    overflow-y: auto;
+    overflow-x: hidden;
+    cursor: crosshair;
+    font-family: 'DotGothic16', sans-serif;
+    /* Thinner pixel font */
+    padding: 3rem 2rem;
+    box-sizing: border-box;
+}
+
+/* Starfield background effect */
+.credits-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+        radial-gradient(1px 1px at 20px 30px, white, transparent),
+        radial-gradient(1px 1px at 40px 70px, rgba(255, 255, 255, 0.8), transparent),
+        radial-gradient(1px 1px at 90px 40px, rgba(255, 255, 255, 0.6), transparent),
+        radial-gradient(1px 1px at 130px 80px, white, transparent),
+        radial-gradient(1px 1px at 160px 120px, rgba(255, 255, 255, 0.7), transparent);
+    background-size: 200px 200px;
+    animation: twinkle 4s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes twinkle {
+    0% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Static content container */
+.credits-content {
+    position: relative;
+    z-index: 1;
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    padding-bottom: 5rem;
+    /* Space for back button */
+}
+
+/* Text styling */
+.credits-section {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.credits-title {
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+    text-transform: none;
+    /* No forced uppercase */
+    letter-spacing: 0.02em;
+}
+
+.credits-text {
+    font-size: 1rem;
+    font-weight: 400;
+    color: #d0d0d0;
+    line-height: 1.7;
+    margin-bottom: 0.5rem;
+}
+
+.credits-text em {
+    font-style: italic;
+    font-weight: 400;
+}
+
+.credits-text strong {
+    font-weight: 600;
+}
+
+/* Theme: Redstone (Research) */
+.theme-redstone .credits-title {
+    color: #FF6B6B;
+}
+
+.theme-redstone .credits-text em {
+    color: #FF9999;
+}
+
+.theme-redstone .credits-text strong {
+    color: #FFCCCC;
+}
+
+/* Theme: Emerald (Work) */
+.theme-emerald .credits-title {
+    color: #6BFF6B;
+}
+
+.theme-emerald .credits-text em {
+    color: #99FF99;
+}
+
+.theme-emerald .credits-text strong {
+    color: #CCFFCC;
+}
+
+/* Theme: Diamond (Projects) */
+.theme-diamond .credits-title {
+    color: #6BFFFF;
+}
+
+.theme-diamond .credits-text em {
+    color: #99FFFF;
+}
+
+.theme-diamond .credits-text strong {
+    color: #CCFFFF;
+}
+
+/* Back button - fixed at bottom */
+.credits-back {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.85);
+    color: #AAAAAA;
+    border: 2px solid #555;
+    padding: 0.75rem 2rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.credits-back:hover {
+    color: #FFFFFF;
+    border-color: #888;
+    background: rgba(50, 50, 50, 0.9);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .credits-title {
+        font-size: 1.5rem;
+    }
+
+    .credits-text {
+        font-size: 0.95rem;
+    }
+
+    .credits-page {
+        padding: 2rem 1rem;
+    }
+}

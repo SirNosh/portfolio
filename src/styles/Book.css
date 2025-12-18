@@ -1,0 +1,56 @@
+.book-page-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 2rem;
+}
+
+.book-background {
+    background-image: url('/assets/textures/book.png');
+    background-size: 100% 100%;
+    width: 146px;
+    /* Native resolution is small, need to scale up */
+    height: 180px;
+    /* Book texture is roughly 146x180. We need to scale closely to retain pixel art ratio, but make it readable.
+     Scale factor: 3x or 4x.
+     146 * 3 = 438px
+     180 * 3 = 540px
+  */
+    width: 438px;
+    height: 540px;
+    padding: 30px 40px;
+    font-family: 'Minecraft', sans-serif;
+    color: #333;
+    image-rendering: pixelated;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.book-background h1 {
+    font-size: 1.5rem;
+    border-bottom: 2px solid #333;
+    margin-bottom: 1rem;
+}
+
+.book-background p {
+    font-size: 1rem;
+    line-height: 1.4;
+    flex-grow: 1;
+}
+
+.book-background a {
+    color: #0000AA;
+    /* Minecraft link blue */
+    text-decoration: none;
+    font-weight: bold;
+    margin-top: auto;
+}
+
+.book-background a:hover {
+    text-decoration: underline;
+}
+
+/* Two page layout simulation if we had double-book texture */

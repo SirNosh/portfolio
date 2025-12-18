@@ -1,0 +1,57 @@
+.ore-block {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    image-rendering: pixelated;
+    cursor: none;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Hover Effect: Subtle brightness + selection */
+.ore-block:hover {
+    filter: brightness(1.2);
+    cursor: none;
+}
+
+.ore-block:hover::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 64px;
+    height: 64px;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    pointer-events: none;
+    box-sizing: border-box;
+}
+
+.ore-texture {
+    width: 64px;
+    height: 64px;
+    display: block;
+    flex-shrink: 0;
+}
+
+.crack-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 64px;
+    height: 64px;
+    pointer-events: none;
+    opacity: 0.85;
+}
+
+/* Label below the ore - always visible */
+.ore-label {
+    margin-top: 0.5rem;
+    color: white;
+    font-family: 'Minecraft', sans-serif;
+    font-size: 14px;
+    text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+    white-space: nowrap;
+    text-align: center;
+}

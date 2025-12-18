@@ -12,9 +12,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-image: url('/assets/textures/stone.png');
     background-size: 64px 64px;
-    /* Tile at 64px */
     image-rendering: pixelated;
     z-index: 1;
 }
@@ -45,9 +43,7 @@
 
 /* Sign */
 .sign-board {
-    background-image: url('/assets/textures/oak_planks.png');
     background-size: 32px 32px;
-    /* Smaller tiles for sign texture */
     padding: 1.5rem 4rem;
     border: 4px solid #3d2e18;
     box-shadow:
@@ -58,9 +54,7 @@
     image-rendering: pixelated;
     position: relative;
     transform: scale(1.3);
-    /* Slightly smaller scale */
     cursor: auto;
-    /* Show default cursor on sign */
 }
 
 .sign-text {

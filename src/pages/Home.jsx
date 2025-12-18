@@ -6,6 +6,7 @@ import OreBlock from '../components/OreBlock';
 const Home = () => {
     const [isMining, setIsMining] = useState(false);
     const [isOnSign, setIsOnSign] = useState(false);
+    const baseUrl = import.meta.env.BASE_URL;
 
     const handleInteraction = (miningActive) => {
         setIsMining(miningActive);
@@ -16,13 +17,17 @@ const Home = () => {
             <Cursor isMining={isMining} hidden={isOnSign} />
 
             {/* Background Layers */}
-            <div className="layer-stone"></div>
+            <div
+                className="layer-stone"
+                style={{ backgroundImage: `url('${baseUrl}assets/textures/stone.png')` }}
+            ></div>
             <div className="vignette"></div>
 
             {/* Content */}
             <main className="content">
                 <div
                     className="sign-board"
+                    style={{ backgroundImage: `url('${baseUrl}assets/textures/oak_planks.png')` }}
                     onMouseEnter={() => setIsOnSign(true)}
                     onMouseLeave={() => setIsOnSign(false)}
                 >

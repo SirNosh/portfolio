@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './OreBlock.css';
 
 const OreBlock = ({ type, label, href, onInteractionChange }) => {
     const [breakStage, setBreakStage] = useState(-1);
     const [isMining, setIsMining] = useState(false);
     const intervalRef = useRef(null);
+    const navigate = useNavigate();
 
     const startMining = () => {
         setIsMining(true);
@@ -22,13 +24,13 @@ const OreBlock = ({ type, label, href, onInteractionChange }) => {
     useEffect(() => {
         if (isMining) {
             const isTouch = window.matchMedia("(hover: none)").matches;
-            const speed = isTouch ? 5 : 40; // Faster breaking animation
+            const speed = isTouch ? 5 : 40;
 
             intervalRef.current = setInterval(() => {
                 setBreakStage((prev) => {
                     if (prev >= 9) {
                         clearInterval(intervalRef.current);
-                        window.location.href = href;
+                        navigate(href);
                         return 10;
                     }
                     return prev + 1;
@@ -38,7 +40,7 @@ const OreBlock = ({ type, label, href, onInteractionChange }) => {
             setBreakStage(-1);
         }
         return () => clearInterval(intervalRef.current);
-    }, [isMining, href]);
+    }, [isMining, href, navigate]);
 
     return (
         <div
@@ -50,13 +52,13 @@ const OreBlock = ({ type, label, href, onInteractionChange }) => {
             onTouchEnd={stopMining}
         >
             <img
-                src={`/assets/textures/${type}_ore.png`}
+                src={`${import.meta.env.BASE_URL}assets/textures/${type}_ore.png`}
                 alt={`${label} ore`}
                 className="ore-texture"
             />
             {breakStage >= 0 && breakStage <= 9 && (
                 <img
-                    src={`/assets/textures/destroy_stage_${breakStage}.png`}
+                    src={`${import.meta.env.BASE_URL}assets/textures/destroy_stage_${breakStage}.png`}
                     alt="cracking"
                     className="crack-overlay"
                 />

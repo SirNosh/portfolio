@@ -20,7 +20,7 @@ const Cursor = ({ isMining, hidden }) => {
             className={`custom-cursor ${isMining ? 'mining' : ''}`}
             style={{ left: `${position.x}px`, top: `${position.y}px` }}
         >
-            <img src="/assets/cursors/pickaxe.png" alt="cursor" />
+            <img src={`${import.meta.env.BASE_URL}assets/cursors/pickaxe.png`} alt="cursor" />
         </div>
     );
 };

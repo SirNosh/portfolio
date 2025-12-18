@@ -4,52 +4,38 @@ import './OreBlock.css';
 
 const OreBlock = ({ type, label, href, onInteractionChange }) => {
     const [breakStage, setBreakStage] = useState(-1);
-    const [isMining, setIsMining] = useState(false);
+    const [isBreaking, setIsBreaking] = useState(false);
     const intervalRef = useRef(null);
     const navigate = useNavigate();
 
-    const startMining = () => {
-        setIsMining(true);
+    const handleClick = () => {
+        if (isBreaking) return; // Already breaking
+        setIsBreaking(true);
         setBreakStage(0);
         if (onInteractionChange) onInteractionChange(true);
     };
 
-    const stopMining = () => {
-        setIsMining(false);
-        setBreakStage(-1);
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        if (onInteractionChange) onInteractionChange(false);
-    };
-
     useEffect(() => {
-        if (isMining) {
-            const isTouch = window.matchMedia("(hover: none)").matches;
-            const speed = isTouch ? 5 : 40;
-
+        if (isBreaking) {
             intervalRef.current = setInterval(() => {
                 setBreakStage((prev) => {
                     if (prev >= 9) {
                         clearInterval(intervalRef.current);
+                        if (onInteractionChange) onInteractionChange(false);
                         navigate(href);
                         return 10;
                     }
                     return prev + 1;
                 });
-            }, speed);
-        } else {
-            setBreakStage(-1);
+            }, 40); // 40ms per stage = 400ms total
         }
         return () => clearInterval(intervalRef.current);
-    }, [isMining, href, navigate]);
+    }, [isBreaking, href, navigate, onInteractionChange]);
 
     return (
         <div
             className="ore-block"
-            onMouseDown={startMining}
-            onMouseUp={stopMining}
-            onMouseLeave={stopMining}
-            onTouchStart={startMining}
-            onTouchEnd={stopMining}
+            onClick={handleClick}
         >
             <img
                 src={`${import.meta.env.BASE_URL}assets/textures/${type}_ore.png`}

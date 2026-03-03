@@ -1,27 +1,53 @@
-@import url('https://fonts.cdnfonts.com/css/minecraft-4');
-@import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
-
 :root {
-  --bg-dark: #121212;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--bg-dark);
-  color: white;
-  font-family: 'Minecraft', sans-serif;
-  cursor: none;
-  user-select: none;
+  --bg: #FAF8F4;
+  --text: #1a1a1a;
+  --text-muted: #555;
+  --accent: #16A34A;
+  --accent-hover: #15803d;
+  --serif: 'EB Garamond', Georgia, 'Times New Roman', serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  --max-width: 720px;
+  --border-light: rgba(0, 0, 0, 0.08);
 }
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 19px;
+}
+
+body {
+  font-family: var(--serif);
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 0, 0, 0.25);
+  text-underline-offset: 3px;
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+a:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+::selection {
+  background-color: rgba(22, 163, 74, 0.15);
 }
 
 img {
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
-  -ms-interpolation-mode: nearest-neighbor;
+  max-width: 100%;
+  height: auto;
 }

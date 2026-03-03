@@ -1,104 +1,164 @@
-.app-container {
+.app {
   position: relative;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-}
-
-/* Backgrounds */
-.layer-stone {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url('/assets/textures/stone.png');
-  background-size: 64px;
-  /* Scale up texture */
-  image-rendering: pixelated;
   z-index: 1;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 6rem 1.5rem 3rem;
 }
 
-
-
-.vignette {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.8) 100%);
-  z-index: 2;
-  pointer-events: none;
-}
-
-/* Content */
-.content {
-  position: relative;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  gap: 4rem;
-}
-
-/* Sign */
-.sign-board {
-  background-image: url('/assets/textures/oak_planks.png');
-  background-size: 64px;
-  padding: 2.5rem 6rem;
-  /* Increased padding */
-  border: 4px solid #3d2e18;
-  /* Dark wood color */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+/* ─── Hero ─── */
+.hero {
   text-align: center;
-  image-rendering: pixelated;
-  position: relative;
-  transform: scale(1.5);
-  /* Scale up the whole sign */
+  margin-bottom: 4rem;
 }
 
-.sign-board::before,
-.sign-board::after {
-  /* Optional: chains or posts? */
-  content: '';
+.hero-title {
+  font-family: var(--serif);
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  font-weight: 600;
+  letter-spacing: -2px;
+  line-height: 1.05;
+  margin-bottom: 0.4rem;
+  color: var(--text);
 }
 
-.sign-text {
-  font-size: 3rem;
-  color: black;
-  text-shadow: 2px 2px 0px rgba(180, 180, 180, 0.5);
+.hero-subtitle {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  color: var(--text-muted);
+  margin-bottom: 2.5rem;
+}
+
+/* TOC nav */
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.2rem 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.toc a {
+  font-size: 1rem;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: rgba(0, 0, 0, 0.3);
+}
+
+.toc a:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+/* Social */
+.social-links {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.social-links a {
+  color: var(--text-muted);
+  text-decoration-color: rgba(0, 0, 0, 0.15);
+}
+
+.social-links a:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+/* ─── Divider ─── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border-light);
+  margin: 3rem 0;
+}
+
+/* ─── Sections ─── */
+.section {
+  margin-bottom: 2rem;
+}
+
+.section-heading {
+  font-family: var(--serif);
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 500;
+  letter-spacing: -1px;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.section-intro {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+  font-style: italic;
+}
+
+/* ─── Entries ─── */
+.entry {
+  margin-bottom: 2.5rem;
+}
+
+.entry-title {
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+  line-height: 1.35;
+}
+
+.entry-title a {
+  color: var(--text);
+  text-decoration-color: rgba(0, 0, 0, 0.2);
+}
+
+.entry-title a:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+.entry-meta {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+}
+
+.entry p {
   margin-bottom: 0.5rem;
 }
 
-.sign-subtext {
-  font-size: 1.2rem;
-  color: #333;
+.mono {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: -0.3px;
 }
 
-/* Ores */
-.ore-container {
-  display: flex;
-  gap: 4rem;
-  align-items: center;
+/* ─── Footer ─── */
+.footer {
+  text-align: center;
+  padding: 3rem 0 2rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-light);
+  margin-top: 2rem;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .ore-container {
+/* ─── Responsive ─── */
+@media (max-width: 600px) {
+  .app {
+    padding: 3rem 1rem 2rem;
+  }
+
+  .toc {
     flex-direction: column;
-    gap: 2rem;
+    align-items: center;
+    gap: 0.8rem;
   }
 
-  .layer-stone {
-    height: 100%;
+  .entry-title {
+    font-size: 1.15rem;
   }
-
-  .layer-deepslate {
-    display: none;
-  }
-
-  /* Just use one backing on mobile? Or split vertically? */
 }

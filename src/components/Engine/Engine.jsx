@@ -69,6 +69,19 @@ export default function Engine() {
     const satGeo = new THREE.SphereGeometry(0.048, 12, 10)
     const ringGeo = new THREE.TorusGeometry(2.08, 0.014, 16, 180)
     const ring2Geo = new THREE.TorusGeometry(2.32, 0.006, 8, 140)
+    const farGeo = new THREE.IcosahedronGeometry(1.72, 0)
+    const haloGeo = new THREE.TorusGeometry(1.96, 0.005, 8, 96)
+    const dustCount = 28
+    const dustGeo = new THREE.BufferGeometry()
+    const dustPositions = new Float32Array(dustCount * 3)
+    for (let i = 0; i < dustCount; i += 1) {
+      const angle = (i / dustCount) * Math.PI * 2
+      const radius = i % 2 === 0 ? 1.15 : 1.48
+      dustPositions[i * 3] = Math.cos(angle) * radius
+      dustPositions[i * 3 + 1] = Math.sin(angle * 2.1) * 0.82
+      dustPositions[i * 3 + 2] = -0.7 - (i % 5) * 0.48
+    }
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3))
 
     const solidMat = new THREE.MeshToonMaterial({
       color: 0xd8d4ce,
@@ -93,6 +106,25 @@ export default function Engine() {
       color: 0xf6f4f2,
       transparent: true,
       opacity: 0.38,
+    })
+    const farMat = new THREE.MeshBasicMaterial({
+      color: 0xf6f4f2,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.1,
+    })
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: 0xf6f4f2,
+      transparent: true,
+      opacity: 0.14,
+    })
+    const dustMat = new THREE.PointsMaterial({
+      color: 0xf6f4f2,
+      size: 0.032,
+      transparent: true,
+      opacity: 0.4,
+      sizeAttenuation: true,
+      depthWrite: false,
     })
 
     const solid = new THREE.Mesh(sphereGeo, solidMat)
@@ -129,12 +161,21 @@ export default function Engine() {
     const orbit = new THREE.Group()
     orbit.add(sats)
 
+    const far = new THREE.Mesh(farGeo, farMat)
+    far.position.z = -3.1
+    const halo = new THREE.Mesh(haloGeo, haloMat)
+    halo.position.z = -1.7
+    halo.rotation.x = Math.PI / 2.4
+    const dust = new THREE.Points(dustGeo, dustMat)
+    const depth = new THREE.Group()
+    depth.add(far, halo, dust)
+
     const pulse = new THREE.Group()
     pulse.add(body, cage, ringRig, ring2Rig, orbit)
     const spinner = new THREE.Group()
     spinner.add(pulse)
     const rig = new THREE.Group()
-    rig.add(spinner)
+    rig.add(spinner, depth)
     scene.add(rig)
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.28))
@@ -155,6 +196,7 @@ export default function Engine() {
 
     const shade = { t: 0 }
     const spread = { r: 1.9 }
+    const flight = { dolly: 0, rise: 0, sway: 0, yaw: 0, roll: 0 }
     let timeline = null
 
     if (reduce) {
@@ -186,6 +228,9 @@ export default function Engine() {
         .add(spread, { r: 2.12, duration: 200 }, 800)
         .add(pulse, { scale: 1, duration: 200 }, 800)
         .add(ring2Rig, { rotateZ: -140, duration: 400 }, 600)
+        .add(flight, { dolly: 0.28, rise: 0.1, sway: -0.08, yaw: -1.8, roll: 0.9, duration: 280 }, 0)
+        .add(flight, { dolly: 0.52, rise: -0.05, sway: 0.09, yaw: 2.2, roll: -0.7, duration: 320 }, 280)
+        .add(flight, { dolly: 0.34, rise: 0.12, sway: -0.03, yaw: 0.4, roll: 0.28, duration: 400 }, 600)
     }
 
     const wireOnDark = new THREE.Color('#f6f4f2')
@@ -225,6 +270,31 @@ export default function Engine() {
       if (!reduce) spinner.rotation.y = time * 0.12
       else spinner.rotation.y = 0.45
 
+      const portrait = window.innerWidth <= window.innerHeight
+      const mobile = window.innerWidth < 760 && portrait
+      const landscapePhone = window.innerHeight < 520 && !portrait
+      const amp = mobile ? 0.4 : landscapePhone ? 0.22 : 1
+      const swayAmp = landscapePhone ? 0.12 : amp
+      camera.position.set(
+        flight.sway * swayAmp,
+        0.05 + flight.rise * amp,
+        7.4 - flight.dolly * (mobile ? 0.55 : landscapePhone ? 0.4 : 1),
+      )
+      camera.rotation.set(
+        THREE.MathUtils.degToRad(flight.rise * -3.5 * amp),
+        THREE.MathUtils.degToRad(flight.yaw * amp),
+        THREE.MathUtils.degToRad(flight.roll * (landscapePhone ? 0.25 : amp)),
+      )
+      depth.position.set(flight.sway * -0.55 * amp, flight.rise * 0.45 * amp, 0)
+      depth.rotation.y = THREE.MathUtils.degToRad(flight.yaw * 1.6 * amp)
+      depth.rotation.z = THREE.MathUtils.degToRad(flight.roll * -0.7 * amp)
+      if (!reduce) {
+        far.rotation.y = time * 0.08
+        halo.rotation.z = time * -0.1
+        dust.rotation.y = time * 0.045
+      }
+      key.position.set(4.2 + flight.sway * 2.4 * amp, 5.4 + flight.rise * 1.8 * amp, 4)
+
       const mix = Math.min(1, Math.max(0, shade.t))
       const eased = mix * mix * (3 - 2 * mix)
       solidMat.opacity = 0.04 + eased * 0.96
@@ -242,6 +312,9 @@ export default function Engine() {
       toneMix += (target - toneMix) * 0.08
       wireMat.color.copy(wireOnLight).lerp(wireOnDark, toneMix)
       ring2Mat.color.copy(wireMat.color)
+      farMat.color.copy(wireMat.color)
+      haloMat.color.copy(wireMat.color)
+      dustMat.color.copy(wireMat.color)
 
       renderer.render(scene, camera)
     }
@@ -262,8 +335,8 @@ export default function Engine() {
       window.visualViewport?.removeEventListener('resize', onResize)
       observed.disconnect()
       renderer.dispose()
-      ;[sphereGeo, cageGeo, satGeo, ringGeo, ring2Geo].forEach((geo) => geo.dispose())
-      ;[solidMat, shellMat, wireMat, ringMat, ring2Mat, ...satMats].forEach((mat) => mat.dispose())
+      ;[sphereGeo, cageGeo, satGeo, ringGeo, ring2Geo, farGeo, haloGeo, dustGeo].forEach((geo) => geo.dispose())
+      ;[solidMat, shellMat, wireMat, ringMat, ring2Mat, farMat, haloMat, dustMat, ...satMats].forEach((mat) => mat.dispose())
       ramp.dispose()
       el.removeChild(renderer.domElement)
     }

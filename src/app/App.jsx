@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { bindSprings } from '../animation/springs'
+import { bindTravel } from '../animation/travel'
 import Engine from '../components/Engine/Engine'
 import Loader from '../components/Loader/Loader'
 import Topbar from '../components/Topbar/Topbar'
@@ -18,10 +19,23 @@ export default function App() {
   const [booting, setBooting] = useState(true)
   const finish = useCallback(() => setBooting(false), [])
 
-  useEffect(() => bindSprings(document.getElementById('top')), [])
+  useEffect(() => {
+    const root = document.getElementById('top')
+    const stopSprings = bindSprings(root)
+    const stopTravel = bindTravel(root)
+    return () => {
+      stopSprings()
+      stopTravel()
+    }
+  }, [])
 
   return (
     <div id="top" className="site">
+      <div className="field" aria-hidden="true">
+        <div className="field-grid" />
+        <div className="field-wash" />
+        <div className="field-drift" />
+      </div>
       <Topbar />
       <main id="scroll-root">
         <HeroSection />
@@ -36,7 +50,9 @@ export default function App() {
         <ContactSection />
       </main>
       <Engine />
-      <div className="spectrum" aria-hidden="true" />
+      <div className="spectrum-slot" aria-hidden="true">
+        <div className="spectrum" />
+      </div>
       {booting ? <Loader onFinish={finish} /> : null}
     </div>
   )

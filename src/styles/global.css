@@ -72,13 +72,8 @@ main {
 }
 
 .spectrum {
-  position: fixed;
-  left: 1.35rem;
-  bottom: 1.35rem;
   width: 52px;
   height: 52px;
-  z-index: 4;
-  pointer-events: none;
   border-radius: 50%;
   background: conic-gradient(
     #ff4b4b,

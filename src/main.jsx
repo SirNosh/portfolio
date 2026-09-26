@@ -5,6 +5,7 @@ import './styles/global.css'
 import './styles/typography.css'
 import './styles/chapters.css'
 import './styles/responsive.css'
+import './styles/motion.css'
 import App from './app/App.jsx'
 
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual'

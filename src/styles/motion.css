@@ -1,0 +1,166 @@
+.chapter {
+  --pass: 0.5;
+}
+
+.field {
+  position: fixed;
+  inset: -14%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.field-grid,
+.field-wash,
+.field-drift {
+  position: absolute;
+  inset: 0;
+}
+
+.field-grid {
+  background-image:
+    linear-gradient(rgba(246, 244, 242, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(246, 244, 242, 0.045) 1px, transparent 1px);
+  background-size: 84px 84px;
+}
+
+.field-wash {
+  background:
+    radial-gradient(ellipse 42% 34% at 76% 38%, rgba(255, 75, 75, 0.16), transparent 70%),
+    radial-gradient(ellipse 36% 42% at 8% 82%, rgba(77, 107, 255, 0.1), transparent 72%);
+}
+
+.field-drift {
+  background: radial-gradient(circle at 70% 46%, rgba(246, 244, 242, 0.05), transparent 42%);
+}
+
+.spectrum-slot {
+  position: fixed;
+  left: max(1.35rem, var(--sal));
+  bottom: max(1.35rem, var(--sab));
+  z-index: 4;
+  width: 52px;
+  height: 52px;
+  pointer-events: none;
+}
+
+.spectrum {
+  position: absolute;
+  inset: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .field-grid {
+    transform: translate3d(calc(var(--travel, 0) * -7%), calc(var(--travel, 0) * -12%), 0);
+  }
+
+  .field-wash {
+    transform: translate3d(calc(var(--travel, 0) * 5%), calc(var(--travel, 0) * -8%), 0)
+      rotate(calc(var(--travel, 0) * -9deg));
+  }
+
+  .field-drift {
+    transform: translate3d(calc(var(--travel, 0) * -10%), calc(var(--travel, 0) * 6%), 0)
+      rotate(calc(var(--travel, 0) * 14deg));
+  }
+
+  .spectrum-slot {
+    transform: translate3d(calc(var(--travel, 0) * 22px), calc(var(--travel, 0) * -64px), 0)
+      rotate(calc(var(--travel, 0) * -10deg));
+  }
+
+  .kicker,
+  .rule {
+    transform: translate3d(calc((var(--pass) - 0.5) * 34px), calc((var(--pass) - 0.5) * -48px), 0)
+      rotate(calc((var(--pass) - 0.5) * -3deg));
+  }
+
+  .display,
+  .chapter h2 {
+    transform: translate3d(calc((var(--pass) - 0.5) * -12px), calc((var(--pass) - 0.5) * -18px), 0);
+  }
+
+  .lede,
+  .status,
+  .working-title,
+  .aside,
+  .quiet {
+    transform: translate3d(calc((var(--pass) - 0.5) * 10px), calc((var(--pass) - 0.5) * -30px), 0);
+  }
+
+  .chapter article {
+    transform: translate3d(calc((var(--pass) - 0.5) * -16px), calc((var(--pass) - 0.5) * -42px), 0);
+  }
+
+  .tiles,
+  .steps,
+  .layers,
+  .spec,
+  .lineage,
+  .code,
+  .chapter-copy > .link-row,
+  .chapter-copy > .quiet-links {
+    transform: translate3d(calc((var(--pass) - 0.5) * -20px), calc((var(--pass) - 0.5) * -58px), 0);
+  }
+}
+
+@media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
+  .kicker,
+  .rule {
+    transform: translate3d(0, calc((var(--pass) - 0.5) * -12px), 0);
+  }
+
+  .display,
+  .chapter h2 {
+    transform: translate3d(0, calc((var(--pass) - 0.5) * -8px), 0);
+  }
+
+  .lede,
+  .status,
+  .working-title,
+  .aside,
+  .quiet {
+    transform: translate3d(0, calc((var(--pass) - 0.5) * -11px), 0);
+  }
+
+  .chapter article,
+  .tiles,
+  .steps,
+  .layers,
+  .spec,
+  .lineage,
+  .code,
+  .chapter-copy > .link-row,
+  .chapter-copy > .quiet-links {
+    transform: translate3d(0, calc((var(--pass) - 0.5) * -16px), 0);
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) and (prefers-reduced-motion: no-preference) {
+  .kicker,
+  .rule,
+  .lede,
+  .status,
+  .working-title,
+  .aside,
+  .quiet {
+    transform: translate3d(0, calc((var(--pass) - 0.5) * -8px), 0);
+  }
+
+  .display,
+  .chapter h2 {
+    transform: translate3d(0, calc((var(--pass) - 0.5) * -6px), 0);
+  }
+
+  .chapter article,
+  .tiles,
+  .steps,
+  .layers,
+  .spec,
+  .lineage,
+  .code,
+  .chapter-copy > .link-row,
+  .chapter-copy > .quiet-links {
+    transform: translate3d(0, calc((var(--pass) - 0.5) * -10px), 0);
+  }
+}

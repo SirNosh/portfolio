@@ -10,10 +10,9 @@ export function useReveal(ref) {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
 
     const anim = animate(nodes, {
-      opacity: [0, 1],
-      y: [16, 0],
-      delay: stagger(45),
-      duration: 640,
+      y: [14, 0],
+      delay: stagger(40),
+      duration: 560,
       ease: 'out(3)',
       autoplay: onScroll({
         target: root,

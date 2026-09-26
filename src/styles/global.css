@@ -203,9 +203,4 @@ main {
   .spectrum {
     animation: none;
   }
-
-  [data-reveal] {
-    opacity: 1 !important;
-    transform: none !important;
-  }
 }

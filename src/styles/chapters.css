@@ -195,9 +195,3 @@
 .chapter article + article {
   margin-top: 1.15rem;
 }
-
-@media (prefers-reduced-motion: no-preference) {
-  [data-reveal] {
-    opacity: 0;
-  }
-}

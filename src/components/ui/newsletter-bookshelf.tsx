@@ -16,6 +16,23 @@ import {
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
+export interface NewsletterBookPage {
+  title: string;
+  status?: string;
+  workingTitle?: string;
+  paragraphs?: string[];
+  steps?: string[];
+  more?: string[];
+  roles?: [string, string][];
+  layers?: [string, string][];
+  decisions?: [string, string][];
+  tiles?: [string, string][];
+  quiet?: string;
+  links?: { href: string; label: string }[];
+  aside?: string;
+  href?: string;
+}
+
 export interface NewsletterBookshelfItem {
   id: string;
   title: string;
@@ -24,6 +41,7 @@ export interface NewsletterBookshelfItem {
   href?: string;
   color?: string;
   foil?: string;
+  pages?: NewsletterBookPage[];
 }
 
 export interface NewsletterBookshelfProps {
@@ -500,6 +518,242 @@ function damp(current: number, target: number, speed: number, delta: number) {
 
 const BOOK_ENTER_DURATION = 520;
 const BOOK_EXIT_DURATION = 400;
+const PAGE_CANVAS = { width: 1024, height: 1480 };
+
+type PageLinkHit = {
+  href: string;
+  u0: number;
+  v0: number;
+  u1: number;
+  v1: number;
+};
+
+type PagePaint = {
+  texture: THREE.CanvasTexture;
+  links: PageLinkHit[];
+};
+
+type PageBlock =
+  | { kind: "status"; text: string }
+  | { kind: "title"; text: string; href?: string }
+  | { kind: "working"; text: string }
+  | { kind: "body"; text: string }
+  | { kind: "pair"; name: string; detail: string }
+  | { kind: "step"; text: string }
+  | { kind: "quiet"; text: string }
+  | { kind: "link"; label: string; href: string };
+
+function pageBlocks(page: NewsletterBookPage): PageBlock[] {
+  const blocks: PageBlock[] = [];
+  if (page.status) blocks.push({ kind: "status", text: page.status });
+  blocks.push({ kind: "title", text: page.title, href: page.href });
+  if (page.workingTitle) blocks.push({ kind: "working", text: page.workingTitle });
+  page.paragraphs?.forEach((text) => blocks.push({ kind: "body", text }));
+  page.roles?.forEach(([name, detail]) => blocks.push({ kind: "pair", name, detail }));
+  page.layers?.forEach(([name, detail]) => blocks.push({ kind: "pair", name, detail }));
+  page.decisions?.forEach(([name, detail]) => blocks.push({ kind: "pair", name, detail }));
+  page.tiles?.forEach(([name, detail]) => blocks.push({ kind: "pair", name, detail }));
+  page.steps?.forEach((text) => blocks.push({ kind: "step", text }));
+  page.more?.forEach((text) => blocks.push({ kind: "body", text }));
+  if (page.quiet) blocks.push({ kind: "quiet", text: page.quiet });
+  page.links?.forEach((link) => blocks.push({ kind: "link", label: link.label, href: link.href }));
+  if (page.aside) blocks.push({ kind: "quiet", text: page.aside });
+  return blocks;
+}
+
+function wrapText(context: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (context.measureText(next).width <= maxWidth || !line) line = next;
+    else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
+function paintPage(page: NewsletterBookPage, pageNumber: number, total: number): PagePaint {
+  const { width, height } = PAGE_CANVAS;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    const empty = document.createElement("canvas");
+    return { texture: new THREE.CanvasTexture(empty), links: [] };
+  }
+
+  const blocks = pageBlocks(page);
+  const padX = 86;
+  const padTop = 96;
+  const padBottom = 118;
+  const maxWidth = width - padX * 2;
+  let scale = 1;
+  let chosen: { y: number; draw: (ctx: CanvasRenderingContext2D) => PageLinkHit[] } | null = null;
+
+  for (let attempt = 0; attempt < 7; attempt += 1) {
+    const titleSize = Math.round(92 * scale);
+    const bodySize = Math.round(40 * scale);
+    const smallSize = Math.round(28 * scale);
+    const lineGap = Math.round(14 * scale);
+    let y = padTop;
+    const plan: { run: (ctx: CanvasRenderingContext2D, cursor: number) => { y: number; links: PageLinkHit[] } }[] = [];
+
+    const pushText = (
+      text: string,
+      font: string,
+      size: number,
+      color: string,
+      gap: number,
+      href?: string,
+      indent = 0,
+    ) => {
+      context.font = font;
+      const lines = wrapText(context, text, maxWidth - indent);
+      const blockTop = y;
+      y += lines.length * Math.round(size * 1.28) + gap;
+      const blockBottom = y;
+      plan.push({
+        run: (ctx, cursor) => {
+          ctx.font = font;
+          ctx.fillStyle = color;
+          ctx.textBaseline = "top";
+          ctx.textAlign = "left";
+          const links: PageLinkHit[] = [];
+          let lineY = cursor;
+          lines.forEach((line) => {
+            ctx.fillText(line, padX + indent, lineY);
+            if (href) {
+              const measured = ctx.measureText(line).width;
+              const top = lineY - 8;
+              const bottom = lineY + size + 16;
+              links.push({
+                href,
+                u0: (padX + indent) / width,
+                u1: (padX + indent + measured) / width,
+                v1: 1 - top / height,
+                v0: 1 - bottom / height,
+              });
+              ctx.strokeStyle = color;
+              ctx.lineWidth = Math.max(2, size * 0.045);
+              ctx.beginPath();
+              ctx.moveTo(padX + indent, lineY + size + 4);
+              ctx.lineTo(padX + indent + measured, lineY + size + 4);
+              ctx.stroke();
+            }
+            lineY += Math.round(size * 1.28);
+          });
+          return { y: blockBottom, links };
+        },
+      });
+      void blockTop;
+    };
+
+    for (const block of blocks) {
+      if (block.kind === "status") {
+        pushText(block.text.toUpperCase(), `500 ${smallSize}px "IBM Plex Mono", ui-monospace, monospace`, smallSize, "#6d645b", lineGap);
+      } else if (block.kind === "title") {
+        pushText(block.text, `600 ${titleSize}px Barlow, "Avenir Next", sans-serif`, titleSize, "#1b1916", Math.round(22 * scale), block.href);
+      } else if (block.kind === "working") {
+        pushText(block.text, `500 ${Math.round(bodySize * 0.92)}px Barlow, "Avenir Next", sans-serif`, Math.round(bodySize * 0.92), "#3d3832", lineGap);
+      } else if (block.kind === "body") {
+        pushText(block.text, `400 ${bodySize}px Barlow, "Avenir Next", sans-serif`, bodySize, "#241f1b", Math.round(18 * scale));
+      } else if (block.kind === "pair") {
+        pushText(block.name, `600 ${bodySize}px Barlow, "Avenir Next", sans-serif`, bodySize, "#1b1916", Math.round(4 * scale));
+        pushText(block.detail, `400 ${Math.round(bodySize * 0.86)}px Barlow, "Avenir Next", sans-serif`, Math.round(bodySize * 0.86), "#3a342e", Math.round(12 * scale));
+      } else if (block.kind === "step") {
+        pushText(block.text, `500 ${bodySize}px Barlow, "Avenir Next", sans-serif`, bodySize, "#241f1b", Math.round(8 * scale));
+      } else if (block.kind === "quiet") {
+        pushText(block.text, `400 ${Math.round(bodySize * 0.86)}px Barlow, "Avenir Next", sans-serif`, Math.round(bodySize * 0.86), "#5e564c", Math.round(16 * scale));
+      } else if (block.kind === "link") {
+        y += Math.round(8 * scale);
+        pushText(block.label, `600 ${Math.round(bodySize * 0.95)}px Barlow, "Avenir Next", sans-serif`, Math.round(bodySize * 0.95), "#1b1916", Math.round(12 * scale), block.href);
+      }
+    }
+
+    if (y <= height - padBottom || scale < 0.64) {
+      chosen = {
+        y,
+        draw: (ctx) => {
+          const links: PageLinkHit[] = [];
+          let cursor = padTop;
+          for (const item of plan) {
+            const next = item.run(ctx, cursor);
+            cursor = next.y;
+            links.push(...next.links);
+          }
+          return links;
+        },
+      };
+      if (y <= height - padBottom) break;
+    }
+    scale *= 0.88;
+    y = padTop;
+  }
+
+  context.fillStyle = "#f4efe4";
+  context.fillRect(0, 0, width, height);
+  const grain = context.createLinearGradient(0, 0, width, 0);
+  grain.addColorStop(0, "rgba(92, 68, 40, 0.18)");
+  grain.addColorStop(0.045, "rgba(92, 68, 40, 0.04)");
+  grain.addColorStop(0.5, "rgba(255, 255, 255, 0.18)");
+  grain.addColorStop(1, "rgba(92, 68, 40, 0.06)");
+  context.fillStyle = grain;
+  context.fillRect(0, 0, width, height);
+
+  context.beginPath();
+  context.moveTo(width - 92, height);
+  context.lineTo(width, height - 92);
+  context.lineTo(width, height);
+  context.closePath();
+  context.fillStyle = "#e5d9c4";
+  context.fill();
+  context.strokeStyle = "rgba(92, 68, 40, 0.45)";
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(width - 92, height);
+  context.lineTo(width, height - 92);
+  context.stroke();
+
+  const links = chosen?.draw(context) ?? [];
+
+  context.fillStyle = "#8b8174";
+  context.font = '500 26px "IBM Plex Mono", ui-monospace, monospace';
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(`${pageNumber + 1}  /  ${total}`, width / 2, height - 58);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  return { texture, links };
+}
+
+function openExternal(href: string) {
+  try {
+    const destination = new URL(href, window.location.href);
+    if (destination.protocol !== "http:" && destination.protocol !== "https:") return;
+    window.open(destination.href, "_blank", "noopener,noreferrer");
+  } catch {
+    // Ignore malformed destinations.
+  }
+}
+
+function hitLink(links: PageLinkHit[], uv: THREE.Vector2) {
+  return links.find(
+    (link) =>
+      uv.x >= Math.min(link.u0, link.u1) &&
+      uv.x <= Math.max(link.u0, link.u1) &&
+      uv.y >= Math.min(link.v0, link.v1) &&
+      uv.y <= Math.max(link.v0, link.v1),
+  );
+}
 
 function bezierCoordinate(t: number, point1: number, point2: number) {
   const inverse = 1 - t;
@@ -540,8 +794,11 @@ function Book({
   cameraX,
   orbit,
   brand,
+  pageIndex,
+  fontsReady,
   onHover,
   onSelect,
+  onTurnPage,
 }: {
   book: BookLayout;
   index: number;
@@ -551,10 +808,24 @@ function Book({
   cameraX: React.MutableRefObject<number>;
   orbit: React.MutableRefObject<{ yaw: number; pitch: number }>;
   brand: string;
+  pageIndex: number;
+  fontsReady: boolean;
   onHover: (index: number | null) => void;
   onSelect: (index: number) => void;
+  onTurnPage: (index: number, delta: number) => void;
 }) {
+  const camera = useThree((state) => state.camera);
   const group = useRef<THREE.Group>(null);
+  const closedRef = useRef<THREE.Mesh>(null);
+  const openRig = useRef<THREE.Group>(null);
+  const coverHinge = useRef<THREE.Group>(null);
+  const flipHinge = useRef<THREE.Group>(null);
+  const openT = useRef(0);
+  const flipT = useRef(0);
+  const flipDone = useRef(false);
+  const [shown, setShown] = useState(0);
+  const [flip, setFlip] = useState<{ from: number; to: number; dir: 1 | -1 } | null>(null);
+  const hasPages = (book.pages?.length ?? 0) > 0;
   const focusFlight = useRef<{
     startedAt: number;
     position: THREE.Vector3;
@@ -590,12 +861,44 @@ function Book({
     [book.bookHeight, book.depth, book.width],
   );
 
+  const paints = useMemo(() => {
+    if (!hasPages || typeof document === "undefined") return [];
+    void fontsReady;
+    return (book.pages ?? []).map((page, pageNumber, all) =>
+      paintPage(page, pageNumber, all.length),
+    );
+  }, [book.pages, fontsReady, hasPages]);
+
   useEffect(() => {
     return () => {
       Object.values(textures).forEach((texture) => texture?.dispose());
       geometry.dispose();
     };
   }, [geometry, textures]);
+
+  useEffect(() => {
+    if (openRig.current) openRig.current.visible = false;
+    return () => {
+      paints.forEach((paint) => paint.texture.dispose());
+    };
+  }, [paints]);
+
+  useEffect(() => {
+    if (!selected) {
+      setShown(0);
+      setFlip(null);
+      flipDone.current = false;
+      return;
+    }
+    if (flip || pageIndex === shown) return;
+    flipDone.current = false;
+    flipT.current = 0;
+    setFlip({
+      from: shown,
+      to: pageIndex,
+      dir: pageIndex > shown ? 1 : -1,
+    });
+  }, [flip, pageIndex, selected, shown]);
 
   useEffect(() => {
     const node = group.current;
@@ -626,25 +929,24 @@ function Book({
     const node = group.current;
     if (!node) return;
     const motion = reducedMotion ? 1000 : selected ? 7 : 11;
-    const selectedFor = (performance.now() - selectedAt.current) / 1000;
-    const autoYaw =
-      selected && !reducedMotion
-        ? Math.sin(selectedFor * 0.85) * 0.3
-        : 0;
-    const autoPitch =
-      selected && !reducedMotion
-        ? Math.sin(selectedFor * 0.55) * 0.04
-        : 0;
-    const targetX = selected ? cameraX.current : book.x;
-    const targetY = selected
-      ? 2.06
-      : book.bookHeight / 2 + (hovered ? 0.25 : 0);
-    const targetZ = selected ? 1.8 : hovered ? 0.22 : 0;
-    const targetScale = selected ? 0.96 : 1;
-    const targetRotationY = selected
-      ? -Math.PI / 2 + orbit.current.yaw + autoYaw
-      : 0;
-    const targetRotationX = selected ? orbit.current.pitch + autoPitch : 0;
+    const perspective = camera as THREE.PerspectiveCamera;
+    const portrait = perspective.aspect < 0.9;
+    const openShift = hasPages ? book.depth * (portrait ? 0.06 : 0.4) : 0;
+    const targetX = selected ? cameraX.current + openShift : book.x;
+    const targetY = selected ? 1.86 : book.bookHeight / 2 + (hovered ? 0.25 : 0);
+    const targetZ = selected ? (portrait ? 2.7 : 3.45) : hovered ? 0.22 : 0;
+    const distance = Math.max(0.8, perspective.position.z - targetZ);
+    const visibleHeight =
+      2 * Math.tan((((perspective.fov || 35) * Math.PI) / 180) / 2) * distance;
+    const visibleWidth = visibleHeight * Math.max(perspective.aspect, 0.2);
+    const footprint = portrait ? book.depth * 0.94 : book.depth * 1.76;
+    const fit = Math.min(
+      (visibleHeight * 0.86) / book.bookHeight,
+      (visibleWidth * 0.92) / footprint,
+    );
+    const targetScale = selected ? THREE.MathUtils.clamp(fit, 0.4, 1.3) : 1;
+    const targetRotationY = selected ? -Math.PI / 2 + orbit.current.yaw : 0;
+    const targetRotationX = selected ? orbit.current.pitch : 0;
 
     const flight = selected ? focusFlight.current : null;
     if (flight) {
@@ -737,11 +1039,56 @@ function Book({
       node.scale.setScalar(nextScale);
     }
 
+    const openTarget = selected && hasPages ? 1 : 0;
+    openT.current = damp(openT.current, openTarget, reducedMotion ? 1000 : 3.4, delta);
+    const opened = easeInOutCubic(THREE.MathUtils.clamp((openT.current - 0.16) / 0.84, 0, 1));
+    if (coverHinge.current) coverHinge.current.rotation.y = -3.04 * opened;
+    if (closedRef.current) {
+      const showClosed = !hasPages || openT.current < 0.3;
+      closedRef.current.visible = showClosed;
+      closedRef.current.raycast = showClosed ? THREE.Mesh.prototype.raycast : () => {};
+    }
+    if (openRig.current) openRig.current.visible = hasPages && openT.current >= 0.24;
+    if (flip && flipHinge.current) {
+      flipT.current = Math.min(1, flipT.current + (reducedMotion ? 1 : delta * 1.65));
+      const eased = easeInOutCubic(flipT.current);
+      flipHinge.current.rotation.y = flip.dir === 1 ? -Math.PI * eased : -Math.PI * (1 - eased);
+      if (flipT.current >= 1 && !flipDone.current) {
+        flipDone.current = true;
+        const destination = flip.to;
+        setShown(destination);
+        setFlip(null);
+      }
+    }
   });
 
   const select = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
     onSelect(index);
+  };
+
+  const baseIndex = !flip ? shown : flip.dir === 1 ? flip.to : flip.from;
+  const flipIndex = flip ? (flip.dir === 1 ? flip.from : flip.to) : shown;
+  const basePaint = paints[Math.min(baseIndex, Math.max(paints.length - 1, 0))];
+  const flipPaint = paints[Math.min(flipIndex, Math.max(paints.length - 1, 0))];
+  const pageW = book.depth * 0.9;
+  const pageH = book.bookHeight * 0.9;
+
+  const onPageClick = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation();
+    if (!selected || flip || openT.current < 0.72) return;
+    const local = event.object.worldToLocal(event.point.clone());
+    const u = THREE.MathUtils.clamp((local.x + pageW / 2) / pageW, 0, 1);
+    const v = THREE.MathUtils.clamp((local.y + pageH / 2) / pageH, 0, 1);
+    const paint = paints[shown];
+    if (paint) {
+      const link = hitLink(paint.links, new THREE.Vector2(u, v));
+      if (link) {
+        openExternal(link.href);
+        return;
+      }
+    }
+    onTurnPage(index, u < 0.14 ? -1 : 1);
   };
 
   return (
@@ -759,7 +1106,7 @@ function Book({
       }}
       onClick={select}
     >
-      <mesh geometry={geometry} renderOrder={selected ? 20 : 0}>
+      <mesh ref={closedRef} name="closed-book" geometry={geometry} renderOrder={selected ? 20 : 0}>
         <meshStandardMaterial
           attach="material-0"
           map={textures.cover ?? undefined}
@@ -822,6 +1169,83 @@ function Book({
           depthWrite={!selected}
         />
       </mesh>
+      {hasPages ? (
+        <group ref={openRig}>
+          <mesh name="page-block" raycast={() => {}} position={[book.width * 0.02, 0, 0]}>
+            <boxGeometry
+              args={[
+                Math.max(0.08, book.width * 0.62),
+                book.bookHeight * 0.985,
+                book.depth * 0.99,
+              ]}
+            />
+            <meshStandardMaterial
+              map={textures.paper ?? undefined}
+              color="#f3ecdf"
+              roughness={0.96}
+            />
+          </mesh>
+          {basePaint ? (
+            <mesh
+              position={[book.width / 2 - 0.034, 0, 0]}
+              rotation={[0, Math.PI / 2, 0]}
+              name="page-face"
+              renderOrder={30}
+              onClick={onPageClick}
+            >
+              <planeGeometry args={[pageW, pageH]} />
+              <meshBasicMaterial map={basePaint.texture} toneMapped={false} />
+            </mesh>
+          ) : null}
+          {flip && flipPaint ? (
+            <group
+              ref={flipHinge}
+              position={[book.width / 2 - 0.012, 0, pageW / 2]}
+              rotation={[0, flip.dir === -1 ? -Math.PI : 0, 0]}
+            >
+              <mesh position={[0.01, 0, -pageW / 2]} rotation={[0, Math.PI / 2, 0]} renderOrder={32}>
+                <planeGeometry args={[pageW, pageH]} />
+                <meshBasicMaterial map={flipPaint.texture} toneMapped={false} />
+              </mesh>
+              <mesh position={[-0.01, 0, -pageW / 2]} rotation={[0, -Math.PI / 2, 0]} renderOrder={32}>
+                <planeGeometry args={[pageW, pageH]} />
+                <meshBasicMaterial color="#f3eadc" toneMapped={false} />
+              </mesh>
+            </group>
+          ) : null}
+          <group ref={coverHinge} position={[book.width / 2, 0, book.depth / 2]}>
+            <mesh
+              position={[0.028, 0, -book.depth / 2]}
+              rotation={[0, Math.PI / 2, 0]}
+              renderOrder={34}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (openT.current > 0.72 && !flip) onTurnPage(index, -1);
+              }}
+            >
+              <planeGeometry args={[book.depth, book.bookHeight]} />
+              <meshStandardMaterial
+                map={textures.cover ?? undefined}
+                color={textures.cover ? "#ffffff" : book.color}
+                roughness={0.8}
+                metalness={0.015}
+              />
+            </mesh>
+            <mesh
+              position={[0.006, 0, -book.depth / 2]}
+              rotation={[0, -Math.PI / 2, 0]}
+              renderOrder={33}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (openT.current > 0.72 && !flip) onTurnPage(index, -1);
+              }}
+            >
+              <planeGeometry args={[book.depth * 0.98, book.bookHeight * 0.98]} />
+              <meshBasicMaterial color="#f6f1e6" toneMapped={false} />
+            </mesh>
+          </group>
+        </group>
+      ) : null}
     </group>
   );
 }
@@ -843,8 +1267,11 @@ function Scene({
   cameraX,
   orbit,
   brand,
+  pageIndex,
+  fontsReady,
   onHover,
   onSelect,
+  onTurnPage,
 }: {
   books: BookLayout[];
   hoveredIndex: number | null;
@@ -853,8 +1280,11 @@ function Scene({
   cameraX: React.MutableRefObject<number>;
   orbit: React.MutableRefObject<{ yaw: number; pitch: number }>;
   brand: string;
+  pageIndex: number;
+  fontsReady: boolean;
   onHover: (index: number | null) => void;
   onSelect: (index: number) => void;
+  onTurnPage: (index: number, delta: number) => void;
 }) {
   return (
     <>
@@ -874,8 +1304,11 @@ function Scene({
           cameraX={cameraX}
           orbit={orbit}
           brand={brand}
+          pageIndex={selectedIndex === index ? pageIndex : 0}
+          fontsReady={fontsReady}
           onHover={onHover}
           onSelect={onSelect}
+          onTurnPage={onTurnPage}
         />
       ))}
     </>
@@ -911,9 +1344,10 @@ export function NewsletterBookshelf({
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [fontsReady, setFontsReady] = useState(false);
+  const [pageIndex, setPageIndex] = useState(0);
   const [stageWidth, setStageWidth] = useState(1000);
   const stageRef = useRef<HTMLDivElement>(null);
-  const tooltipRef = useRef<HTMLDivElement>(null);
   const cameraX = useRef(0);
   const orbit = useRef({ yaw: 0, pitch: 0 });
   const gesture = useRef<{
@@ -951,6 +1385,12 @@ export function NewsletterBookshelf({
     const update = () => setReducedMotion(motion.matches);
     update();
     motion.addEventListener?.("change", update);
+    let fontsLive = true;
+    const fonts = document.fonts?.ready;
+    if (!fonts) setFontsReady(true);
+    else fonts.then(() => {
+      if (fontsLive) setFontsReady(true);
+    });
     const stage = stageRef.current;
     if (!stage) return () => motion.removeEventListener?.("change", update);
     const resize = new ResizeObserver(([entry]) => {
@@ -958,6 +1398,7 @@ export function NewsletterBookshelf({
     });
     resize.observe(stage);
     return () => {
+      fontsLive = false;
       resize.disconnect();
       motion.removeEventListener?.("change", update);
     };
@@ -983,6 +1424,7 @@ export function NewsletterBookshelf({
       orbit.current = { yaw: 0, pitch: 0 };
       setHoveredIndex(null);
       setSelectedIndex(index);
+      setPageIndex(0);
       onSelect?.(books[index]!, index);
     },
     [books, moveCamera, onSelect],
@@ -1007,7 +1449,7 @@ export function NewsletterBookshelf({
     (index: number) => {
       if (suppressClick.current) return;
       if (selectedIndex === index) {
-        openBook(index);
+        if (!(books[index]?.pages?.length)) openBook(index);
         return;
       }
 
@@ -1039,10 +1481,21 @@ export function NewsletterBookshelf({
 
   const close = useCallback(() => {
     setSelectedIndex(null);
+    setPageIndex(0);
     orbit.current = { yaw: 0, pitch: 0 };
     onClose?.();
     stageRef.current?.focus({ preventScroll: true });
   }, [onClose]);
+
+  const turnPage = useCallback(
+    (bookIndex: number, delta: number) => {
+      if (bookIndex !== selectedIndex) return;
+      const total = books[bookIndex]?.pages?.length ?? 0;
+      if (total < 2) return;
+      setPageIndex((current) => THREE.MathUtils.clamp(current + delta, 0, total - 1));
+    },
+    [books, selectedIndex],
+  );
 
   const switchFocused = useCallback(
     (direction: number) => {
@@ -1067,11 +1520,6 @@ export function NewsletterBookshelf({
   };
 
   const pointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const rect = stageRef.current?.getBoundingClientRect();
-    if (tooltipRef.current && rect) {
-      tooltipRef.current.style.left = `${event.clientX - rect.left}px`;
-      tooltipRef.current.style.top = `${event.clientY - rect.top}px`;
-    }
     const active = gesture.current;
     if (!active) return;
     const dx = event.clientX - active.x;
@@ -1103,7 +1551,7 @@ export function NewsletterBookshelf({
   };
 
   const selectedBook = selectedIndex === null ? null : books[selectedIndex];
-  const hovered = hoveredIndex === null ? null : books[hoveredIndex];
+  const openPage = selectedBook?.pages?.[pageIndex];
   const bounds = getBounds();
   return (
     <section
@@ -1117,10 +1565,13 @@ export function NewsletterBookshelf({
         ref={stageRef}
         tabIndex={0}
         role="region"
+        data-open-page={openPage?.title ?? ""}
         aria-label={
-          selectedBook
-            ? `${selectedBook.title} focused. Drag to rotate or activate again to open.`
-            : `Interactive archive with ${books.length} editions`
+          openPage && selectedBook
+            ? `${selectedBook.title}. ${openPage.title}`
+            : selectedBook
+              ? `${selectedBook.title} focused.`
+              : `Interactive archive with ${books.length} editions`
         }
         className="relative h-full w-full touch-pan-y overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--shelf-accent)]"
         onPointerDown={pointerDown}
@@ -1145,15 +1596,20 @@ export function NewsletterBookshelf({
             close();
           } else if (event.key === "ArrowRight") {
             event.preventDefault();
-            if (selectedIndex !== null) switchFocused(1);
+            if (selectedIndex !== null && (books[selectedIndex]?.pages?.length ?? 0) > 1) {
+              turnPage(selectedIndex, 1);
+            } else if (selectedIndex !== null) switchFocused(1);
             else moveCamera(cameraX.current + bounds.visibleSpan * 0.23);
           } else if (event.key === "ArrowLeft") {
             event.preventDefault();
-            if (selectedIndex !== null) switchFocused(-1);
+            if (selectedIndex !== null && (books[selectedIndex]?.pages?.length ?? 0) > 1) {
+              turnPage(selectedIndex, -1);
+            } else if (selectedIndex !== null) switchFocused(-1);
             else moveCamera(cameraX.current - bounds.visibleSpan * 0.23);
           } else if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             if (selectedIndex === null) selectBook(currentIndex);
+            else if ((books[selectedIndex]?.pages?.length ?? 0) > 1) turnPage(selectedIndex, 1);
             else openBook(selectedIndex);
           }
         }}
@@ -1174,23 +1630,13 @@ export function NewsletterBookshelf({
             cameraX={cameraX}
             orbit={orbit}
             brand={brand}
+            pageIndex={pageIndex}
+            fontsReady={fontsReady}
             onHover={setHoveredIndex}
             onSelect={selectBook}
+            onTurnPage={turnPage}
           />
         </Canvas>
-
-        <div
-          ref={tooltipRef}
-          aria-hidden
-          className={cn(
-            "pointer-events-none absolute z-20 max-w-[300px] -translate-x-1/2 -translate-y-[calc(100%+16px)] whitespace-nowrap rounded-md bg-[#171717] px-3 py-2 font-mono text-[11px] leading-4 text-white shadow-xl transition-opacity duration-150 dark:bg-white dark:text-[#171717]",
-            hovered && selectedIndex === null ? "opacity-100" : "opacity-0",
-          )}
-        >
-          {hovered?.title}
-          <span className="block text-white/50 dark:text-black/50">{hovered?.date}</span>
-        </div>
-
       </div>
     </section>
   );

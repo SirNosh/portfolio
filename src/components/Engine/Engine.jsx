@@ -102,7 +102,7 @@ export default function Engine() {
       transparent: true,
       opacity: 0.92,
     })
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xff4b4b })
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xff4b4b, transparent: true, opacity: 1 })
     const ring2Mat = new THREE.MeshBasicMaterial({
       color: 0xf6f4f2,
       transparent: true,
@@ -284,7 +284,9 @@ export default function Engine() {
       const worldRadius = 1.46 * rig.scale.x
       const dive = reduce ? 0 : THREE.MathUtils.clamp(flight.dive, 0, 1)
       const orbitTurn = reduce ? 0 : THREE.MathUtils.clamp(flight.orbit, 0, 1)
-      insidePoint.copy(center).addScaledVector(outward, worldRadius * 0.12)
+      const closest = mobile ? Math.max(6.5, worldRadius * 5.25) : landscapePhone ? 6.55 : 6.35
+      const nearDist = Math.max(worldRadius * 2.2, Math.min(reach - 0.25, closest))
+      insidePoint.copy(center).addScaledVector(outward, nearDist)
       desired.lerpVectors(home, insidePoint, dive)
       desired.y += Math.sin(dive * Math.PI) * (mobile ? 0.04 : 0.16)
       const orbitAngle = orbitTurn * Math.PI * 2
@@ -303,7 +305,7 @@ export default function Engine() {
         camera.rotation.set(0, 0, 0)
         spinner.rotation.y = 0.45
       } else {
-        const park = (mobile ? 0 : landscapePhone ? 0.16 : 0.22) * (1 - dive)
+        const park = mobile ? 0 : landscapePhone ? 0.22 : 0.3
         camera.lookAt(center)
         camera.rotateY(park)
         const rollAmp = mobile ? 0.4 : landscapePhone ? 0.28 : 1
@@ -317,7 +319,7 @@ export default function Engine() {
         halo.rotation.z = time * -0.1 - orbitTurn * 0.6
         dust.rotation.y = time * 0.045 + orbitTurn * 0.5
       }
-      const veil = 1 - dive * 0.82
+      const veil = (1 - dive * 0.82) * (1 - orbitTurn * 0.7)
       farMat.opacity = 0.1 * veil
       haloMat.opacity = 0.14 * veil
       dustMat.opacity = 0.4 * veil
@@ -332,7 +334,15 @@ export default function Engine() {
       solidMat.opacity = 0.04 + eased * 0.96
       wireMat.opacity = 0.92 - eased * 0.68
       shellMat.opacity = eased
-      ring2Mat.opacity = 0.16 + (1 - eased) * 0.36
+      ring2Mat.opacity = (0.16 + (1 - eased) * 0.36) * (1 - dive * 0.85)
+      ringMat.opacity = 1 - dive * 0.78
+      const ringScale = 1 - Math.max(dive, orbitTurn) * 0.24
+      ringRig.scale.setScalar(ringScale)
+      ring2Rig.scale.setScalar(ringScale)
+      satMats.forEach((material) => {
+        material.transparent = true
+        material.opacity = 1 - dive * 0.7
+      })
       if (!reduce) sats.rotation.z = time * 0.35
       satHome.forEach(({ mesh, angle }) => {
         mesh.position.set(Math.cos(angle) * spread.r, 0, Math.sin(angle) * spread.r)

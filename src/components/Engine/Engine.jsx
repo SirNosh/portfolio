@@ -88,6 +88,7 @@ export default function Engine() {
       gradientMap: ramp,
       transparent: true,
       opacity: 0.05,
+      side: THREE.DoubleSide,
     })
     const shellMat = new THREE.MeshBasicMaterial({
       color: 0x141312,
@@ -196,7 +197,7 @@ export default function Engine() {
 
     const shade = { t: 0 }
     const spread = { r: 1.9 }
-    const flight = { dolly: 0, rise: 0, sway: 0, yaw: 0, roll: 0 }
+    const flight = { dive: 0, orbit: 0, roll: 0 }
     let timeline = null
 
     if (reduce) {
@@ -211,30 +212,36 @@ export default function Engine() {
         autoplay: onScroll(scroll),
       })
       timeline
-        .add(body, { rotateY: 80, rotateX: 24, duration: 240 }, 0)
-        .add(cage, { rotateY: -150, rotateZ: 28, duration: 420 }, 0)
-        .add(ringRig, { rotateZ: 70, duration: 360 }, 0)
-        .add(ring2Rig, { rotateZ: -50, duration: 360 }, 0)
-        .add(shade, { t: 0.12, duration: 240 }, 0)
-        .add(body, { rotateY: 250, rotateX: 6, duration: 280 }, 240)
-        .add(shade, { t: 1, duration: 280 }, 240)
-        .add(ringRig, { rotateZ: 190, rotateX: 16, duration: 420 }, 280)
-        .add(spread, { r: 2.42, duration: 320 }, 460)
-        .add(orbit, { rotateY: 160, duration: 540 }, 460)
-        .add(body, { rotateY: 520, rotateX: 32, duration: 280 }, 520)
-        .add(cage, { rotateY: -30, rotateZ: -12, duration: 480 }, 520)
-        .add(pulse, { scale: 1.03, duration: 220 }, 560)
-        .add(body, { rotateY: 680, rotateX: 14, duration: 200 }, 800)
-        .add(spread, { r: 2.12, duration: 200 }, 800)
-        .add(pulse, { scale: 1, duration: 200 }, 800)
-        .add(ring2Rig, { rotateZ: -140, duration: 400 }, 600)
-        .add(flight, { dolly: 0.28, rise: 0.1, sway: -0.08, yaw: -1.8, roll: 0.9, duration: 280 }, 0)
-        .add(flight, { dolly: 0.52, rise: -0.05, sway: 0.09, yaw: 2.2, roll: -0.7, duration: 320 }, 280)
-        .add(flight, { dolly: 0.34, rise: 0.12, sway: -0.03, yaw: 0.4, roll: 0.28, duration: 400 }, 600)
+        .add(shade, { t: 1, duration: 260, ease: 'inOut(2)' }, 30)
+        .add(body, { rotateY: 70, rotateX: 18, duration: 340 }, 0)
+        .add(cage, { rotateY: -100, rotateZ: 18, duration: 340 }, 0)
+        .add(ringRig, { rotateZ: 60, duration: 340 }, 0)
+        .add(ring2Rig, { rotateZ: -36, duration: 340 }, 0)
+        .add(flight, { dive: 1, roll: 2.2, duration: 340, ease: 'inOut(3)' }, 0)
+        .add(body, { rotateY: 150, rotateX: 8, duration: 120 }, 340)
+        .add(cage, { rotateY: -40, duration: 120 }, 340)
+        .add(flight, { dive: 0, roll: 0, duration: 240, ease: 'inOut(3)' }, 460)
+        .add(body, { rotateY: 250, rotateX: 14, duration: 240 }, 460)
+        .add(ringRig, { rotateZ: 150, rotateX: 12, duration: 240 }, 460)
+        .add(spread, { r: 2.24, duration: 220 }, 480)
+        .add(flight, { orbit: 1, roll: 1.4, duration: 300, ease: 'inOut(2)' }, 700)
+        .add(body, { rotateY: 980, rotateX: 30, duration: 300 }, 700)
+        .add(cage, { rotateY: 260, rotateZ: -30, duration: 300 }, 700)
+        .add(orbit, { rotateY: 320, duration: 300 }, 700)
+        .add(ringRig, { rotateZ: 300, duration: 300 }, 700)
+        .add(ring2Rig, { rotateZ: -200, duration: 300 }, 700)
+        .add(pulse, { scale: 1.04, duration: 140 }, 720)
+        .add(pulse, { scale: 1, duration: 140 }, 860)
+        .add(spread, { r: 2.02, duration: 160 }, 840)
     }
 
     const wireOnDark = new THREE.Color('#f6f4f2')
     const wireOnLight = new THREE.Color('#252423')
+    const home = new THREE.Vector3(0, 0.05, 7.4)
+    const center = new THREE.Vector3()
+    const outward = new THREE.Vector3()
+    const insidePoint = new THREE.Vector3()
+    const desired = new THREE.Vector3()
     let toneMix = 1
     let frame = 0
     const clock = new THREE.Clock()
@@ -267,33 +274,58 @@ export default function Engine() {
     const render = () => {
       frame = requestAnimationFrame(render)
       const time = clock.getElapsedTime()
-      if (!reduce) spinner.rotation.y = time * 0.12
-      else spinner.rotation.y = 0.45
-
       const portrait = window.innerWidth <= window.innerHeight
       const mobile = window.innerWidth < 760 && portrait
       const landscapePhone = window.innerHeight < 520 && !portrait
-      const amp = mobile ? 0.4 : landscapePhone ? 0.22 : 1
-      const swayAmp = landscapePhone ? 0.12 : amp
+      center.copy(rig.position)
+      outward.copy(home).sub(center)
+      const reach = Math.max(outward.length(), 0.001)
+      outward.multiplyScalar(1 / reach)
+      const worldRadius = 1.46 * rig.scale.x
+      const dive = reduce ? 0 : THREE.MathUtils.clamp(flight.dive, 0, 1)
+      const orbitTurn = reduce ? 0 : THREE.MathUtils.clamp(flight.orbit, 0, 1)
+      insidePoint.copy(center).addScaledVector(outward, worldRadius * 0.12)
+      desired.lerpVectors(home, insidePoint, dive)
+      desired.y += Math.sin(dive * Math.PI) * (mobile ? 0.04 : 0.16)
+      const orbitAngle = orbitTurn * Math.PI * 2
+      const ox = desired.x - center.x
+      const oy = desired.y - center.y
+      const oz = desired.z - center.z
+      const cos = Math.cos(orbitAngle)
+      const sin = Math.sin(orbitAngle)
       camera.position.set(
-        flight.sway * swayAmp,
-        0.05 + flight.rise * amp,
-        7.4 - flight.dolly * (mobile ? 0.55 : landscapePhone ? 0.4 : 1),
+        center.x + ox * cos - oz * sin,
+        center.y + oy + Math.sin(orbitTurn * Math.PI) * (mobile ? 0.05 : landscapePhone ? 0.08 : 0.2),
+        center.z + ox * sin + oz * cos,
       )
-      camera.rotation.set(
-        THREE.MathUtils.degToRad(flight.rise * -3.5 * amp),
-        THREE.MathUtils.degToRad(flight.yaw * amp),
-        THREE.MathUtils.degToRad(flight.roll * (landscapePhone ? 0.25 : amp)),
-      )
-      depth.position.set(flight.sway * -0.55 * amp, flight.rise * 0.45 * amp, 0)
-      depth.rotation.y = THREE.MathUtils.degToRad(flight.yaw * 1.6 * amp)
-      depth.rotation.z = THREE.MathUtils.degToRad(flight.roll * -0.7 * amp)
-      if (!reduce) {
-        far.rotation.y = time * 0.08
-        halo.rotation.z = time * -0.1
-        dust.rotation.y = time * 0.045
+      if (reduce) {
+        camera.position.copy(home)
+        camera.rotation.set(0, 0, 0)
+        spinner.rotation.y = 0.45
+      } else {
+        const park = (mobile ? 0 : landscapePhone ? 0.16 : 0.22) * (1 - dive)
+        camera.lookAt(center)
+        camera.rotateY(park)
+        const rollAmp = mobile ? 0.4 : landscapePhone ? 0.28 : 1
+        camera.rotateZ(THREE.MathUtils.degToRad(flight.roll * rollAmp))
+        spinner.rotation.y = time * 0.1 + orbitTurn * Math.PI * 2
       }
-      key.position.set(4.2 + flight.sway * 2.4 * amp, 5.4 + flight.rise * 1.8 * amp, 4)
+      depth.rotation.y = reduce ? 0 : -orbitAngle * 0.4
+      depth.position.set(reduce ? 0 : Math.sin(orbitAngle) * 0.16, reduce ? 0 : dive * 0.08, 0)
+      if (!reduce) {
+        far.rotation.y = time * 0.08 + orbitTurn * 0.8
+        halo.rotation.z = time * -0.1 - orbitTurn * 0.6
+        dust.rotation.y = time * 0.045 + orbitTurn * 0.5
+      }
+      const veil = 1 - dive * 0.82
+      farMat.opacity = 0.1 * veil
+      haloMat.opacity = 0.14 * veil
+      dustMat.opacity = 0.4 * veil
+      key.position.set(
+        center.x + Math.cos(orbitAngle) * 4.2,
+        5.4 + dive * 0.6,
+        center.z + 4 + Math.sin(orbitAngle) * 1.8,
+      )
 
       const mix = Math.min(1, Math.max(0, shade.t))
       const eased = mix * mix * (3 - 2 * mix)

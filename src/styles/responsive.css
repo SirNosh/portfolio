@@ -7,12 +7,12 @@
 /* iPhone 17 / 18 / Pro / Pro Max portrait, and the narrower phones beside them. */
 @media (max-width: 760px) {
   .engine {
-    top: var(--header-block);
+    top: 0;
     right: 0;
-    bottom: auto;
+    bottom: 0;
     left: 0;
-    height: var(--stage);
-    background: var(--bg);
+    height: auto;
+    background: transparent;
   }
 
   .engine.is-light {

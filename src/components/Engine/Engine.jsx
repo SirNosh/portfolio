@@ -3,13 +3,6 @@ import * as THREE from 'three'
 import { CSS3DObject, CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js'
 import { contact } from '../../app/siteData'
 
-const BOOKS = [
-  { id: 'experience', title: 'Work Experience', color: '#8d735c', ink: '#f7f3ec', width: 0.48 },
-  { id: 'research', title: 'Research', color: '#9a3d3d', ink: '#f7f3ec', width: 0.44 },
-  { id: 'projects', title: 'Projects', color: '#efe6d4', ink: '#2c2824', width: 0.42 },
-  { id: 'writings', title: 'Writings', color: '#3f6d60', ink: '#f7f3ec', width: 0.5 },
-]
-
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
@@ -24,89 +17,11 @@ function markReady() {
   window.dispatchEvent(new Event('portfolio:webgl'))
 }
 
-function readTone(host) {
-  const narrow = window.innerWidth < 760
-  const stageBottom = host?.getBoundingClientRect().bottom ?? 0
-  const mark = narrow && stageBottom > 0 ? stageBottom - 4 : window.innerHeight * 0.45
-  let tone = 'dark'
-  document.querySelectorAll('.chapter').forEach((section) => {
-    const rect = section.getBoundingClientRect()
-    if (rect.top <= mark && rect.bottom > mark) tone = section.dataset.tone || 'dark'
-  })
-  return tone
-}
-
-function heroProgress() {
-  const hero = document.getElementById('between')
-  if (!hero) return 0
-  const rect = hero.getBoundingClientRect()
-  const span = Math.max(1, hero.offsetHeight - window.innerHeight)
-  return clamp(-rect.top / span, 0, 1)
-}
-
-function bookFocus(id) {
-  const nodes = document.querySelectorAll(`[data-book="${id}"]`)
-  let best = 0
-  nodes.forEach((el) => {
-    const rect = el.getBoundingClientRect()
-    const mid = (rect.top + rect.bottom) / 2
-    const dist = Math.abs(mid - window.innerHeight * 0.42)
-    const near = clamp(1 - dist / (window.innerHeight * 0.7), 0, 1)
-    const covering = rect.top < window.innerHeight * 0.62 && rect.bottom > window.innerHeight * 0.22
-    best = Math.max(best, covering ? Math.max(near, 0.92) : near)
-  })
-  return best
-}
-
-function paintLabel(title, color, ink, planeW, planeH) {
-  const canvas = document.createElement('canvas')
-  const width = 1024
-  const height = Math.max(256, Math.round(width * (planeH / planeW)))
-  canvas.width = width
-  canvas.height = height
-  const draw = () => {
-    const g = canvas.getContext('2d')
-    g.clearRect(0, 0, width, height)
-    g.fillStyle = color
-    g.fillRect(0, 0, width, height)
-    g.fillStyle = ink
-    g.textAlign = 'center'
-    g.textBaseline = 'middle'
-    const words = title.split(' ')
-    const size = words.length === 1 ? 92 : 78
-    g.font = `600 ${size}px Barlow, sans-serif`
-    if (words.length === 1) g.fillText(title, width / 2, height / 2)
-    else {
-      g.fillText(words[0], width / 2, height / 2 - size * 0.7)
-      g.fillText(words.slice(1).join(' '), width / 2, height / 2 + size * 0.7)
-    }
-  }
-  draw()
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 4
-  document.fonts?.ready?.then(() => {
-    draw()
-    texture.needsUpdate = true
-  })
-  return texture
-}
-
-function setFade(root, opacity) {
-  const transparent = opacity < 0.995
-  root.traverse((obj) => {
-    const mats = obj.material ? [].concat(obj.material) : []
-    mats.forEach((mat) => {
-      if (mat.userData.baseOpacity == null) mat.userData.baseOpacity = mat.opacity
-      const next = mat.userData.baseOpacity * opacity
-      if (mat.transparent !== transparent) {
-        mat.transparent = transparent
-        mat.depthWrite = !transparent
-        mat.needsUpdate = true
-      }
-      mat.opacity = next
-    })
-  })
+function shelfReveal() {
+  const shelf = document.getElementById('shelf')
+  if (!shelf) return 0
+  const top = shelf.getBoundingClientRect().top
+  return clamp((window.innerHeight - top) / window.innerHeight, 0, 1)
 }
 
 function makeLaptop() {
@@ -166,66 +81,6 @@ function makeLaptop() {
   return { laptop, lid, anchor, materials: [aluminum, dark, key, glass] }
 }
 
-function makeBook(spec, x) {
-  const height = 1.42
-  const depth = 0.96
-  const coverMat = new THREE.MeshStandardMaterial({ color: spec.color, roughness: 0.62, metalness: 0.04 })
-  const pageMat = new THREE.MeshStandardMaterial({ color: 0xf4f0e8, roughness: 0.9 })
-  const labelW = spec.width * 0.84
-  const labelH = height * 0.46
-  const labelMap = paintLabel(spec.title, spec.color, spec.ink, labelW, labelH)
-  const labelMat = new THREE.MeshBasicMaterial({ map: labelMap })
-
-  const book = new THREE.Group()
-  book.position.set(x, height / 2, 0)
-  const block = new THREE.Mesh(new THREE.BoxGeometry(spec.width * 0.9, height * 0.94, depth * 0.9), pageMat)
-  const back = new THREE.Mesh(new THREE.BoxGeometry(spec.width, height, 0.03), coverMat)
-  back.position.z = -depth / 2
-  const spine = new THREE.Mesh(new THREE.BoxGeometry(spec.width, height, 0.04), coverMat)
-  spine.position.x = -spec.width / 2
-
-  const hinge = new THREE.Group()
-  hinge.position.set(-spec.width / 2, 0, depth / 2)
-  const front = new THREE.Mesh(new THREE.BoxGeometry(spec.width, height, 0.028), coverMat)
-  front.position.x = spec.width / 2
-  const label = new THREE.Mesh(new THREE.PlaneGeometry(labelW, labelH), labelMat)
-  label.position.set(spec.width / 2, 0, 0.02)
-  hinge.add(front, label)
-
-  const pages = [0, 1, 2].map((index) => {
-    const page = new THREE.Mesh(new THREE.BoxGeometry(spec.width * 0.86, height * 0.9, 0.012), pageMat)
-    const fold = new THREE.Group()
-    fold.position.set(-spec.width * 0.36, 0, depth * 0.28)
-    page.position.x = spec.width * 0.4
-    fold.add(page)
-    fold.userData.fan = 0.22 + index * 0.16
-    return fold
-  })
-
-  book.add(block, back, spine, hinge, ...pages)
-  return { book, hinge, pages, materials: [coverMat, pageMat, labelMat], texture: labelMap }
-}
-
-function makeShelf() {
-  const wood = new THREE.MeshStandardMaterial({ color: 0x7a5c45, roughness: 0.72 })
-  const shelf = new THREE.Group()
-  const plank = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.08, 1.2), wood)
-  plank.position.y = -0.04
-  const rail = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.7, 0.05), wood)
-  rail.position.set(0, 0.7, -0.55)
-  shelf.add(plank, rail)
-
-  let cursor = -1.15
-  const books = BOOKS.map((spec) => {
-    const made = makeBook(spec, cursor + spec.width / 2)
-    made.book.rotation.y = spec.id === 'projects' ? 0.08 : -0.04
-    shelf.add(made.book)
-    cursor += spec.width + 0.18
-    return made
-  })
-  return { shelf, books, materials: [wood, ...books.flatMap((item) => item.materials)], textures: books.map((item) => item.texture) }
-}
-
 function screenElement() {
   const el = document.createElement('div')
   el.className = 'laptop-screen'
@@ -281,11 +136,9 @@ export default function Engine() {
     const scene = new THREE.Scene()
     const cssScene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 40)
-    camera.position.set(0, 0.42, 7.8)
 
-    const { laptop, lid, anchor, materials: laptopMats } = makeLaptop()
-    const { shelf, books, materials: shelfMats, textures } = makeShelf()
-    scene.add(laptop, shelf)
+    const { laptop, lid, anchor, materials } = makeLaptop()
+    scene.add(laptop)
 
     const screenEl = screenElement()
     const cssScreen = new CSS3DObject(screenEl)
@@ -299,8 +152,7 @@ export default function Engine() {
     scene.add(key, fill)
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const opens = BOOKS.map(() => 0)
-    const view = { z: 7.8, y: 0.42 }
+    const view = { z: 5.05, y: 0.46 }
     let frame = 0
 
     const layout = () => {
@@ -310,32 +162,23 @@ export default function Engine() {
       const mobile = window.innerWidth < 760 && portrait
       const landscapePhone = window.innerHeight < 520 && !portrait
       if (mobile) {
-        laptop.position.set(0, 0.28, 0)
-        laptop.scale.setScalar(0.74)
+        laptop.position.set(0, 0.04, 0)
+        laptop.scale.setScalar(0.5)
         laptop.rotation.y = -0.1
-        shelf.position.set(0, 0.16, 0)
-        shelf.scale.setScalar(0.52)
-        shelf.rotation.y = -0.1
-        view.z = 3.4
-        view.y = 0.46
+        view.z = 4.55
+        view.y = 0.4
       } else if (landscapePhone) {
-        laptop.position.set(2.02, 0.1, 0)
-        laptop.scale.setScalar(0.74)
-        laptop.rotation.y = -0.28
-        shelf.position.set(1.9, 0.02, 0)
-        shelf.scale.setScalar(0.52)
-        shelf.rotation.y = -0.16
-        view.z = 5.5
-        view.y = 0.3
+        laptop.position.set(0, 0.02, 0)
+        laptop.scale.setScalar(0.84)
+        laptop.rotation.y = -0.22
+        view.z = 4.35
+        view.y = 0.22
       } else {
-        laptop.position.set(1.95, -0.05, 0)
-        laptop.scale.setScalar(0.9)
-        laptop.rotation.y = -0.38
-        shelf.position.set(1.22, -0.02, 0)
-        shelf.scale.setScalar(0.96)
-        shelf.rotation.y = -0.08
-        view.z = 7.8
-        view.y = 0.42
+        laptop.position.set(0, -0.06, 0)
+        laptop.scale.setScalar(1.18)
+        laptop.rotation.y = -0.32
+        view.z = 5.05
+        view.y = 0.46
       }
       camera.aspect = width / Math.max(height, 1)
       camera.position.set(0, view.y, view.z)
@@ -349,38 +192,22 @@ export default function Engine() {
 
     const render = () => {
       frame = requestAnimationFrame(render)
-      const progress = heroProgress()
-      const closeT = reduce ? 1 : smooth((progress - 0.2) / 0.36)
-      const shelfT = reduce ? (progress > 0.55 ? 1 : 0) : smooth((progress - 0.56) / 0.26)
-      const laptopFade = 1 - shelfT
+      const reveal = shelfReveal()
+      const closeT = reduce ? 0 : smooth((reveal - 0.05) / 0.48)
+      const fade = reduce ? (reveal > 0.55 ? 0 : 1) : 1 - smooth((reveal - 0.5) / 0.4)
 
       lid.rotation.x = -1.94 * (1 - closeT) - 0.05 * closeT
-      laptop.visible = laptopFade > 0.04
-      shelf.visible = shelfT > 0.04
-      setFade(laptop, laptopFade)
-      setFade(shelf, shelfT)
+      el.style.opacity = String(fade)
+      el.style.visibility = fade < 0.03 ? 'hidden' : 'visible'
 
-      books.forEach((item, index) => {
-        const target = reduce || shelfT < 0.35 ? 0 : bookFocus(BOOKS[index].id) * shelfT
-        opens[index] += (target - opens[index]) * (reduce ? 1 : 0.08)
-        item.hinge.rotation.y = -opens[index] * 2.15
-        item.pages.forEach((page) => {
-          page.rotation.y = -opens[index] * page.userData.fan
-          page.visible = opens[index] > 0.04
-        })
-      })
-
-      const showScreen = !reduce && closeT < 0.72 && shelfT < 0.2
-      screenEl.style.opacity = showScreen ? String(1 - closeT * 0.35) : '0'
+      const showScreen = fade > 0.35 && closeT < 0.7
+      screenEl.style.opacity = showScreen ? String(1 - closeT * 0.4) : '0'
       screenEl.style.pointerEvents = showScreen ? 'auto' : 'none'
       screenEl.querySelectorAll('a').forEach((link) => {
         link.style.pointerEvents = showScreen ? 'auto' : 'none'
       })
       anchor.updateWorldMatrix(true, false)
       anchor.matrixWorld.decompose(cssScreen.position, cssScreen.quaternion, cssScreen.scale)
-
-      const lightStage = readTone(el) === 'light'
-      if (el.classList.contains('is-light') !== lightStage) el.classList.toggle('is-light', lightStage)
 
       camera.position.set(0, view.y, view.z)
       renderer.render(scene, camera)
@@ -392,6 +219,7 @@ export default function Engine() {
     markReady()
     const onResize = () => layout()
     window.addEventListener('resize', onResize)
+    window.addEventListener('scroll', onResize, { passive: true })
     window.visualViewport?.addEventListener('resize', onResize)
     const observed = new ResizeObserver(onResize)
     observed.observe(el)
@@ -399,12 +227,12 @@ export default function Engine() {
     return () => {
       cancelAnimationFrame(frame)
       window.removeEventListener('resize', onResize)
+      window.removeEventListener('scroll', onResize)
       window.visualViewport?.removeEventListener('resize', onResize)
       observed.disconnect()
       renderer.dispose()
       cssRenderer.domElement.remove()
-      ;[...laptopMats, ...shelfMats].forEach((mat) => mat.dispose())
-      textures.forEach((tex) => tex.dispose())
+      materials.forEach((mat) => mat.dispose())
       if (renderer.domElement.parentNode) renderer.domElement.remove()
     }
   }, [])

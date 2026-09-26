@@ -932,7 +932,7 @@ function Book({
     const motion = reducedMotion ? 1000 : selected ? 7 : 11;
     const perspective = camera as THREE.PerspectiveCamera;
     const portrait = perspective.aspect < 0.9;
-    const openShift = hasPages ? book.depth * (portrait ? 0.06 : 0.4) : 0;
+    const openShift = hasPages ? book.depth * (portrait ? 0 : 0.05) : 0;
     const targetX = selected ? cameraX.current + openShift : book.x;
     const targetY = selected ? 1.86 : book.bookHeight / 2 + (hovered ? 0.25 : 0);
     const targetZ = selected ? (portrait ? 2.7 : 3.45) : hovered ? 0.22 : 0;
@@ -940,14 +940,14 @@ function Book({
     const visibleHeight =
       2 * Math.tan((((perspective.fov || 35) * Math.PI) / 180) / 2) * distance;
     const visibleWidth = visibleHeight * Math.max(perspective.aspect, 0.2);
-    const footprint = portrait ? book.depth * 1.15 : book.depth * 2.15;
+    const footprint = portrait ? book.depth * 1.35 : book.depth * 2.45;
     const fit = Math.min(
-      (visibleHeight * 0.7) / book.bookHeight,
-      (visibleWidth * 0.74) / footprint,
+      (visibleHeight * 0.62) / book.bookHeight,
+      (visibleWidth * 0.7) / footprint,
     );
     const targetScale = selected ? THREE.MathUtils.clamp(fit, 0.35, 1.15) : 1;
-    const targetRotationY = selected ? -Math.PI / 2 + 0.42 + orbit.current.yaw : 0;
-    const targetRotationX = selected ? -0.28 + orbit.current.pitch : 0;
+    const targetRotationY = selected ? -Math.PI / 2 + 0.22 + orbit.current.yaw : 0;
+    const targetRotationX = selected ? -0.12 + orbit.current.pitch : 0;
 
     const flight = selected ? focusFlight.current : null;
     if (flight) {
@@ -1043,8 +1043,8 @@ function Book({
     const openTarget = selected && hasPages ? 1 : 0;
     openT.current = damp(openT.current, openTarget, reducedMotion ? 1000 : 3.4, delta);
     const opened = easeInOutCubic(THREE.MathUtils.clamp((openT.current - 0.16) / 0.84, 0, 1));
-    if (coverHinge.current) coverHinge.current.rotation.y = -Math.PI * 0.96 * opened;
-    if (coverOutside.current) coverOutside.current.visible = opened < 0.78;
+    if (coverHinge.current) coverHinge.current.rotation.y = -0.42 * opened;
+    if (coverOutside.current) coverOutside.current.visible = true;
     if (closedRef.current) {
       const showClosed = !hasPages || openT.current < 0.3;
       closedRef.current.visible = showClosed;
@@ -1173,12 +1173,12 @@ function Book({
       </mesh>
       {hasPages ? (
         <group ref={openRig}>
-          <mesh name="page-block" raycast={() => {}} position={[book.width * 0.02, 0, 0]}>
+          <mesh name="page-block" raycast={() => {}} position={[book.width * 0.02, 0, -pageW * 0.72]}>
             <boxGeometry
               args={[
-                Math.max(0.08, book.width * 0.62),
-                book.bookHeight * 0.985,
-                book.depth * 0.99,
+                Math.max(0.08, book.width * 0.55),
+                pageH * 0.98,
+                pageW * 0.98,
               ]}
             />
             <meshStandardMaterial
@@ -1189,7 +1189,7 @@ function Book({
           </mesh>
           {basePaint ? (
             <mesh
-              position={[book.width / 2 - 0.034, 0, 0]}
+              position={[book.width / 2 - 0.02, 0, -pageW * 0.72]}
               rotation={[0, Math.PI / 2, 0]}
               name="page-face"
               renderOrder={30}
@@ -1202,7 +1202,7 @@ function Book({
           {flip && flipPaint ? (
             <group
               ref={flipHinge}
-              position={[book.width / 2 - 0.012, 0, pageW / 2]}
+              position={[book.width / 2 - 0.01, 0, -pageW * 0.72 + pageW / 2]}
               rotation={[0, flip.dir === -1 ? -Math.PI : 0, 0]}
             >
               <mesh position={[0.01, 0, -pageW / 2]} rotation={[0, Math.PI / 2, 0]} renderOrder={32}>
@@ -1223,36 +1223,28 @@ function Book({
             <boxGeometry args={[0.16, pageH * 0.98, 0.05]} />
             <meshStandardMaterial color="#efe6d4" roughness={0.95} />
           </mesh>
-          <group ref={coverHinge} position={[book.width / 2, 0, book.depth / 2]}>
+          <group ref={coverHinge} position={[book.width / 2 - 0.02, 0, 0.04]}>
             <mesh
               ref={coverOutside}
-              position={[0.028, 0, -book.depth / 2]}
-              rotation={[0, Math.PI / 2, 0]}
+              position={[-0.02, 0, pageW * 0.62]}
               renderOrder={34}
               onClick={(event) => {
                 event.stopPropagation();
                 if (openT.current > 0.72 && !flip) onTurnPage(index, -1);
               }}
             >
-              <planeGeometry args={[book.depth, book.bookHeight]} />
+              <boxGeometry args={[0.09, book.bookHeight, pageW]} />
               <meshStandardMaterial
+                attach="material-0"
                 map={textures.cover ?? undefined}
                 color={textures.cover ? "#ffffff" : book.color}
-                roughness={0.8}
-                metalness={0.015}
+                roughness={0.78}
               />
-            </mesh>
-            <mesh
-              position={[0.006, 0, -book.depth / 2]}
-              rotation={[0, -Math.PI / 2, 0]}
-              renderOrder={33}
-              onClick={(event) => {
-                event.stopPropagation();
-                if (openT.current > 0.72 && !flip) onTurnPage(index, -1);
-              }}
-            >
-              <planeGeometry args={[book.depth * 0.98, book.bookHeight * 0.98]} />
-              <meshBasicMaterial color="#f6f1e6" toneMapped={false} />
+              <meshStandardMaterial attach="material-1" color="#f4efe4" roughness={0.95} />
+              <meshStandardMaterial attach="material-2" color={book.color} roughness={0.84} />
+              <meshStandardMaterial attach="material-3" color={book.color} roughness={0.84} />
+              <meshStandardMaterial attach="material-4" color={book.color} roughness={0.84} />
+              <meshStandardMaterial attach="material-5" color={book.color} roughness={0.84} />
             </mesh>
           </group>
         </group>

@@ -116,8 +116,10 @@ export default function Engine() {
     spun.add(shell, solid, wire, ring, ring2, sats)
     spun.rotation.x = THREE.MathUtils.degToRad(14)
 
+    const spinner = new THREE.Group()
+    spinner.add(spun)
     const rig = new THREE.Group()
-    rig.add(spun)
+    rig.add(spinner)
     scene.add(rig)
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.28))
@@ -160,8 +162,8 @@ export default function Engine() {
       const width = window.innerWidth
       const mobile = width < 760
       const compact = width < 1100
-      spun.position.set(mobile ? 0 : 2.35, mobile ? 1.22 : 0.06, 0)
-      spun.scale.setScalar(mobile ? 0.56 : compact ? 0.76 : 0.94)
+      rig.position.set(mobile ? 0 : 2.35, mobile ? 1.22 : 0.06, 0)
+      rig.scale.setScalar(mobile ? 0.56 : compact ? 0.76 : 0.94)
       camera.aspect = width / window.innerHeight
       camera.updateProjectionMatrix()
       renderer.setSize(width, window.innerHeight)
@@ -170,8 +172,8 @@ export default function Engine() {
     const render = () => {
       frame = requestAnimationFrame(render)
       const time = clock.getElapsedTime()
-      if (!reduce) rig.rotation.y = time * 0.16
-      else rig.rotation.y = 0.45
+      if (!reduce) spinner.rotation.y = time * 0.12
+      else spinner.rotation.y = 0.45
 
       const step = Math.min(1, Math.max(0, (shade.t - 0.02) / 0.24))
       const eased = step * step * (3 - 2 * step)

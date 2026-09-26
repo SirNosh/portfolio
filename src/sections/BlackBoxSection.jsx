@@ -18,7 +18,7 @@ const decisions = [
 
 export default function BlackBoxSection() {
   return (
-    <Chapter id="black-box" index="02" label="Black box" tone="light" titleId="black-box-title">
+    <Chapter id="black-box" index="02" label="Black box" tone="light" titleId="black-box-title" book="research">
       <h2 id="black-box-title">
         Clearing the black box between model calls<span className="dot">.</span>
       </h2>

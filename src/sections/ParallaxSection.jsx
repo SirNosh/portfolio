@@ -12,7 +12,7 @@ const watches = [
 
 export default function ParallaxSection() {
   return (
-    <Chapter id="parallax" index="06" label="Parallax" tone="light" titleId="parallax-title">
+    <Chapter id="parallax" index="06" label="Parallax" tone="light" titleId="parallax-title" book="projects">
       <h2 id="parallax-title">
         <ExternalLink href={links.parallax}>Parallax</ExternalLink>
       </h2>

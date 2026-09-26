@@ -4,7 +4,7 @@ import { links } from '../app/links'
 
 export default function BmadMlSection() {
   return (
-    <Chapter id="bmad" index="05" label="BMAD-ML" tone="dark" titleId="bmad-title">
+    <Chapter id="bmad" index="05" label="BMAD-ML" tone="dark" titleId="bmad-title" book="projects">
       <h2 id="bmad-title">
         <ExternalLink href={links.bmad}>BMAD-ML</ExternalLink>
       </h2>

@@ -2,7 +2,7 @@ import Chapter from '../components/Chapter/Chapter'
 
 export default function ExperienceSection() {
   return (
-    <Chapter id="experience" index="08" label="Experience" tone="light" titleId="experience-title">
+    <Chapter id="experience" index="08" label="Experience" tone="light" titleId="experience-title" book="experience">
       <h2 id="experience-title">
         Operational systems, not just experiments<span className="dot">.</span>
       </h2>

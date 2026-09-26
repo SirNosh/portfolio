@@ -2,7 +2,7 @@ import Chapter from '../components/Chapter/Chapter'
 
 export default function CausalResearchSection() {
   return (
-    <Chapter id="causal" index="03" label="Causal orch" tone="dark" titleId="causal-title">
+    <Chapter id="causal" index="03" label="Causal orch" tone="dark" titleId="causal-title" book="research">
       <p className="status">Paper in production</p>
       <h2 id="causal-title">
         Which orchestration decisions actually help<span className="dot">?</span>

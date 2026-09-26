@@ -15,7 +15,7 @@ const steps = [
 
 export default function NoshSection() {
   return (
-    <Chapter id="nosh" index="04" label="NOSH" tone="light" titleId="nosh-title">
+    <Chapter id="nosh" index="04" label="NOSH" tone="light" titleId="nosh-title" book="projects">
       <p className="status">Active development</p>
       <h2 id="nosh-title">
         <ExternalLink href={links.nosh}>NOSH</ExternalLink>

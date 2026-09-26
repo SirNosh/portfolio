@@ -1,18 +1,22 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { createTimeline, onScroll } from 'animejs'
-import 'animejs/adapters/three'
+import { CSS3DObject, CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js'
+import { contact } from '../../app/siteData'
 
-const SPECTRUM = [0xff4b4b, 0xff7a3c, 0xf2c14e, 0x3ddc97, 0x3ec6ff, 0x4d6bff, 0xb46bff]
+const BOOKS = [
+  { id: 'experience', title: 'Work Experience', color: '#8d735c', ink: '#f7f3ec', width: 0.48 },
+  { id: 'research', title: 'Research', color: '#9a3d3d', ink: '#f7f3ec', width: 0.44 },
+  { id: 'projects', title: 'Projects', color: '#efe6d4', ink: '#2c2824', width: 0.42 },
+  { id: 'writings', title: 'Writings', color: '#3f6d60', ink: '#f7f3ec', width: 0.5 },
+]
 
-function toonRamp() {
-  const data = new Uint8Array([28, 118, 246])
-  const map = new THREE.DataTexture(data, 3, 1, THREE.RedFormat)
-  map.minFilter = THREE.NearestFilter
-  map.magFilter = THREE.NearestFilter
-  map.colorSpace = THREE.NoColorSpace
-  map.needsUpdate = true
-  return map
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function smooth(value) {
+  const t = clamp(value, 0, 1)
+  return t * t * (3 - 2 * t)
 }
 
 function markReady() {
@@ -32,12 +36,220 @@ function readTone(host) {
   return tone
 }
 
+function heroProgress() {
+  const hero = document.getElementById('between')
+  if (!hero) return 0
+  const rect = hero.getBoundingClientRect()
+  const span = Math.max(1, hero.offsetHeight - window.innerHeight)
+  return clamp(-rect.top / span, 0, 1)
+}
+
+function bookFocus(id) {
+  const nodes = document.querySelectorAll(`[data-book="${id}"]`)
+  let best = 0
+  nodes.forEach((el) => {
+    const rect = el.getBoundingClientRect()
+    const mid = (rect.top + rect.bottom) / 2
+    const dist = Math.abs(mid - window.innerHeight * 0.42)
+    const near = clamp(1 - dist / (window.innerHeight * 0.7), 0, 1)
+    const covering = rect.top < window.innerHeight * 0.62 && rect.bottom > window.innerHeight * 0.22
+    best = Math.max(best, covering ? Math.max(near, 0.92) : near)
+  })
+  return best
+}
+
+function paintLabel(title, color, ink, planeW, planeH) {
+  const canvas = document.createElement('canvas')
+  const width = 1024
+  const height = Math.max(256, Math.round(width * (planeH / planeW)))
+  canvas.width = width
+  canvas.height = height
+  const draw = () => {
+    const g = canvas.getContext('2d')
+    g.clearRect(0, 0, width, height)
+    g.fillStyle = color
+    g.fillRect(0, 0, width, height)
+    g.fillStyle = ink
+    g.textAlign = 'center'
+    g.textBaseline = 'middle'
+    const words = title.split(' ')
+    const size = words.length === 1 ? 92 : 78
+    g.font = `600 ${size}px Barlow, sans-serif`
+    if (words.length === 1) g.fillText(title, width / 2, height / 2)
+    else {
+      g.fillText(words[0], width / 2, height / 2 - size * 0.7)
+      g.fillText(words.slice(1).join(' '), width / 2, height / 2 + size * 0.7)
+    }
+  }
+  draw()
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = 4
+  document.fonts?.ready?.then(() => {
+    draw()
+    texture.needsUpdate = true
+  })
+  return texture
+}
+
+function setFade(root, opacity) {
+  const transparent = opacity < 0.995
+  root.traverse((obj) => {
+    const mats = obj.material ? [].concat(obj.material) : []
+    mats.forEach((mat) => {
+      if (mat.userData.baseOpacity == null) mat.userData.baseOpacity = mat.opacity
+      const next = mat.userData.baseOpacity * opacity
+      if (mat.transparent !== transparent) {
+        mat.transparent = transparent
+        mat.depthWrite = !transparent
+        mat.needsUpdate = true
+      }
+      mat.opacity = next
+    })
+  })
+}
+
+function makeLaptop() {
+  const width = 2.28
+  const depth = 1.52
+  const aluminum = new THREE.MeshStandardMaterial({
+    color: 0xc8c6c2,
+    metalness: 0.72,
+    roughness: 0.28,
+  })
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1a1918, roughness: 0.6, metalness: 0.1 })
+  const key = new THREE.MeshStandardMaterial({ color: 0x2a2928, roughness: 0.72 })
+  const glass = new THREE.MeshStandardMaterial({ color: 0x0c0c0b, roughness: 0.4 })
+
+  const laptop = new THREE.Group()
+  const base = new THREE.Mesh(new THREE.BoxGeometry(width, 0.075, depth), aluminum)
+  base.position.y = 0.04
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(width * 0.9, 0.012, depth * 0.62), key)
+  deck.position.set(0, 0.084, 0.02)
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(width * 0.34, 0.01, depth * 0.22), aluminum)
+  pad.position.set(0, 0.094, depth * 0.3)
+  laptop.add(base, deck, pad)
+
+  const rows = [14, 14, 13, 12, 10]
+  rows.forEach((count, row) => {
+    const kw = width * 0.048
+    const kd = depth * 0.042
+    const span = width * 0.78
+    const gap = count > 1 ? (span - count * kw) / (count - 1) : 0
+    const z = -depth * 0.22 + row * (kd + depth * 0.016)
+    for (let i = 0; i < count; i += 1) {
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(kw, 0.014, kd), key)
+      cap.position.set(-span / 2 + kw / 2 + i * (kw + gap), 0.096, z)
+      laptop.add(cap)
+    }
+  })
+
+  const lid = new THREE.Group()
+  lid.position.set(0, 0.078, -depth / 2)
+  const lidBody = new THREE.Mesh(new THREE.BoxGeometry(width, 0.055, depth), aluminum)
+  lidBody.position.set(0, 0.028, depth / 2)
+  const bezel = new THREE.Mesh(new THREE.BoxGeometry(width * 0.96, 0.012, depth * 0.94), dark)
+  bezel.position.set(0, -0.004, depth / 2)
+  const display = new THREE.Mesh(new THREE.BoxGeometry(2.02, 0.008, 1.26), glass)
+  display.position.set(0, -0.01, depth / 2 + 0.02)
+  const notch = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.016, 0.06), dark)
+  notch.position.set(0, -0.012, depth * 0.9)
+  lid.add(lidBody, bezel, display, notch)
+
+  const anchor = new THREE.Object3D()
+  anchor.position.set(0, -0.02, depth / 2 + 0.02)
+  anchor.rotation.x = Math.PI / 2
+  anchor.scale.setScalar(2.02 / 640)
+  lid.add(anchor)
+  laptop.add(lid)
+
+  return { laptop, lid, anchor, materials: [aluminum, dark, key, glass] }
+}
+
+function makeBook(spec, x) {
+  const height = 1.42
+  const depth = 0.96
+  const coverMat = new THREE.MeshStandardMaterial({ color: spec.color, roughness: 0.62, metalness: 0.04 })
+  const pageMat = new THREE.MeshStandardMaterial({ color: 0xf4f0e8, roughness: 0.9 })
+  const labelW = spec.width * 0.84
+  const labelH = height * 0.46
+  const labelMap = paintLabel(spec.title, spec.color, spec.ink, labelW, labelH)
+  const labelMat = new THREE.MeshBasicMaterial({ map: labelMap })
+
+  const book = new THREE.Group()
+  book.position.set(x, height / 2, 0)
+  const block = new THREE.Mesh(new THREE.BoxGeometry(spec.width * 0.9, height * 0.94, depth * 0.9), pageMat)
+  const back = new THREE.Mesh(new THREE.BoxGeometry(spec.width, height, 0.03), coverMat)
+  back.position.z = -depth / 2
+  const spine = new THREE.Mesh(new THREE.BoxGeometry(spec.width, height, 0.04), coverMat)
+  spine.position.x = -spec.width / 2
+
+  const hinge = new THREE.Group()
+  hinge.position.set(-spec.width / 2, 0, depth / 2)
+  const front = new THREE.Mesh(new THREE.BoxGeometry(spec.width, height, 0.028), coverMat)
+  front.position.x = spec.width / 2
+  const label = new THREE.Mesh(new THREE.PlaneGeometry(labelW, labelH), labelMat)
+  label.position.set(spec.width / 2, 0, 0.02)
+  hinge.add(front, label)
+
+  const pages = [0, 1, 2].map((index) => {
+    const page = new THREE.Mesh(new THREE.BoxGeometry(spec.width * 0.86, height * 0.9, 0.012), pageMat)
+    const fold = new THREE.Group()
+    fold.position.set(-spec.width * 0.36, 0, depth * 0.28)
+    page.position.x = spec.width * 0.4
+    fold.add(page)
+    fold.userData.fan = 0.22 + index * 0.16
+    return fold
+  })
+
+  book.add(block, back, spine, hinge, ...pages)
+  return { book, hinge, pages, materials: [coverMat, pageMat, labelMat], texture: labelMap }
+}
+
+function makeShelf() {
+  const wood = new THREE.MeshStandardMaterial({ color: 0x7a5c45, roughness: 0.72 })
+  const shelf = new THREE.Group()
+  const plank = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.08, 1.2), wood)
+  plank.position.y = -0.04
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.7, 0.05), wood)
+  rail.position.set(0, 0.7, -0.55)
+  shelf.add(plank, rail)
+
+  let cursor = -1.15
+  const books = BOOKS.map((spec) => {
+    const made = makeBook(spec, cursor + spec.width / 2)
+    made.book.rotation.y = spec.id === 'projects' ? 0.08 : -0.04
+    shelf.add(made.book)
+    cursor += spec.width + 0.18
+    return made
+  })
+  return { shelf, books, materials: [wood, ...books.flatMap((item) => item.materials)], textures: books.map((item) => item.texture) }
+}
+
+function screenElement() {
+  const el = document.createElement('div')
+  el.className = 'laptop-screen'
+  el.innerHTML = `
+    <p class="screen-name">Dev Vyas</p>
+    <p class="screen-role">Harness Engineering and Efficient ML Research</p>
+    <p class="screen-links">
+      <a href="${contact.github}" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="${contact.linkedin}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+    </p>
+  `
+  return el
+}
+
 export default function Engine() {
   const host = useRef(null)
+  const glHost = useRef(null)
+  const cssHost = useRef(null)
 
   useEffect(() => {
     const el = host.current
-    if (!el) return undefined
+    const glEl = glHost.current
+    const cssEl = cssHost.current
+    if (!el || !glEl || !cssEl) return undefined
 
     let renderer
     try {
@@ -51,200 +263,45 @@ export default function Engine() {
       return undefined
     }
 
-    const narrowScreen = () => window.innerWidth < 760
+    const narrowScreen = () => window.innerWidth < 760 && window.innerWidth <= window.innerHeight
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, narrowScreen() ? 2 : 1.75))
-    renderer.setSize(window.innerWidth, window.innerHeight)
+    renderer.setSize(glEl.clientWidth || window.innerWidth, glEl.clientHeight || window.innerHeight)
     renderer.setClearColor(0x000000, 0)
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.domElement.style.background = 'transparent'
-    el.appendChild(renderer.domElement)
+    renderer.domElement.setAttribute('aria-hidden', 'true')
+    glEl.appendChild(renderer.domElement)
+
+    const cssRenderer = new CSS3DRenderer()
+    cssRenderer.domElement.style.position = 'absolute'
+    cssRenderer.domElement.style.inset = '0'
+    cssRenderer.domElement.style.pointerEvents = 'none'
+    cssEl.appendChild(cssRenderer.domElement)
 
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 40)
-    camera.position.set(0, 0.05, 7.4)
+    const cssScene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 40)
+    camera.position.set(0, 0.42, 7.8)
 
-    const ramp = toonRamp()
-    const sphereGeo = new THREE.SphereGeometry(1.46, 48, 32)
-    const cageGeo = new THREE.IcosahedronGeometry(1.62, 1)
-    const satGeo = new THREE.SphereGeometry(0.048, 12, 10)
-    const ringGeo = new THREE.TorusGeometry(2.08, 0.014, 16, 180)
-    const ring2Geo = new THREE.TorusGeometry(2.32, 0.006, 8, 140)
-    const farGeo = new THREE.IcosahedronGeometry(1.72, 0)
-    const haloGeo = new THREE.TorusGeometry(1.96, 0.005, 8, 96)
-    const dustCount = 28
-    const dustGeo = new THREE.BufferGeometry()
-    const dustPositions = new Float32Array(dustCount * 3)
-    for (let i = 0; i < dustCount; i += 1) {
-      const angle = (i / dustCount) * Math.PI * 2
-      const radius = i % 2 === 0 ? 1.15 : 1.48
-      dustPositions[i * 3] = Math.cos(angle) * radius
-      dustPositions[i * 3 + 1] = Math.sin(angle * 2.1) * 0.82
-      dustPositions[i * 3 + 2] = -0.7 - (i % 5) * 0.48
-    }
-    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3))
+    const { laptop, lid, anchor, materials: laptopMats } = makeLaptop()
+    const { shelf, books, materials: shelfMats, textures } = makeShelf()
+    scene.add(laptop, shelf)
 
-    const solidMat = new THREE.MeshToonMaterial({
-      color: 0xd8d4ce,
-      gradientMap: ramp,
-      transparent: true,
-      opacity: 0.05,
-      side: THREE.DoubleSide,
-    })
-    const shellMat = new THREE.MeshBasicMaterial({
-      color: 0x141312,
-      side: THREE.BackSide,
-      transparent: true,
-      opacity: 0,
-    })
-    const wireMat = new THREE.MeshBasicMaterial({
-      color: 0xf6f4f2,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.92,
-    })
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xff4b4b, transparent: true, opacity: 1 })
-    const ring2Mat = new THREE.MeshBasicMaterial({
-      color: 0xf6f4f2,
-      transparent: true,
-      opacity: 0.38,
-    })
-    const farMat = new THREE.MeshBasicMaterial({
-      color: 0xf6f4f2,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.1,
-    })
-    const haloMat = new THREE.MeshBasicMaterial({
-      color: 0xf6f4f2,
-      transparent: true,
-      opacity: 0.14,
-    })
-    const dustMat = new THREE.PointsMaterial({
-      color: 0xf6f4f2,
-      size: 0.032,
-      transparent: true,
-      opacity: 0.4,
-      sizeAttenuation: true,
-      depthWrite: false,
-    })
+    const screenEl = screenElement()
+    const cssScreen = new CSS3DObject(screenEl)
+    cssScene.add(cssScreen)
 
-    const solid = new THREE.Mesh(sphereGeo, solidMat)
-    const shell = new THREE.Mesh(sphereGeo, shellMat)
-    shell.scale.setScalar(1.035)
-    const wire = new THREE.Mesh(cageGeo, wireMat)
-    const ring = new THREE.Mesh(ringGeo, ringMat)
-    ring.rotation.x = Math.PI / 2.18
-    const ring2 = new THREE.Mesh(ring2Geo, ring2Mat)
-    ring2.rotation.x = Math.PI / 2.65
-    ring2.rotation.y = 0.45
-
-    const sats = new THREE.Group()
-    const satMats = SPECTRUM.map((color) => new THREE.MeshBasicMaterial({ color }))
-    const satHome = []
-    satMats.forEach((material, index) => {
-      const mesh = new THREE.Mesh(satGeo, material)
-      const angle = (index / satMats.length) * Math.PI * 2
-      mesh.position.set(Math.cos(angle) * 1.9, 0, Math.sin(angle) * 1.9)
-      sats.add(mesh)
-      satHome.push({ mesh, angle })
-    })
-    sats.rotation.x = Math.PI / 2.35
-
-    const body = new THREE.Group()
-    body.add(shell, solid)
-    body.rotation.x = THREE.MathUtils.degToRad(12)
-    const cage = new THREE.Group()
-    cage.add(wire)
-    const ringRig = new THREE.Group()
-    ringRig.add(ring)
-    const ring2Rig = new THREE.Group()
-    ring2Rig.add(ring2)
-    const orbit = new THREE.Group()
-    orbit.add(sats)
-
-    const far = new THREE.Mesh(farGeo, farMat)
-    far.position.z = -3.1
-    const halo = new THREE.Mesh(haloGeo, haloMat)
-    halo.position.z = -1.7
-    halo.rotation.x = Math.PI / 2.4
-    const dust = new THREE.Points(dustGeo, dustMat)
-    const depth = new THREE.Group()
-    depth.add(far, halo, dust)
-
-    const pulse = new THREE.Group()
-    pulse.add(body, cage, ringRig, ring2Rig, orbit)
-    const spinner = new THREE.Group()
-    spinner.add(pulse)
-    const rig = new THREE.Group()
-    rig.add(spinner, depth)
-    scene.add(rig)
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.28))
-    const key = new THREE.DirectionalLight(0xfff4ec, 2.4)
-    key.position.set(4.2, 5.4, 4)
-    const fill = new THREE.DirectionalLight(0x9eb0ff, 0.55)
-    fill.position.set(-5, -1.5, 2.2)
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55))
+    const key = new THREE.DirectionalLight(0xfff4ec, 2.2)
+    key.position.set(3.2, 5.2, 4.4)
+    const fill = new THREE.DirectionalLight(0x9eb0ff, 0.4)
+    fill.position.set(-4, 1.2, 2)
     scene.add(key, fill)
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const scrollRoot = document.getElementById('scroll-root')
-    const scroll = {
-      target: scrollRoot || document.documentElement,
-      enter: 'top top',
-      leave: 'bottom bottom',
-      sync: true,
-    }
-
-    const shade = { t: 0 }
-    const spread = { r: 1.9 }
-    const flight = { dive: 0, orbit: 0, roll: 0 }
-    let timeline = null
-
-    if (reduce) {
-      shade.t = 1
-      spread.r = 2.15
-      body.rotation.y = THREE.MathUtils.degToRad(28)
-      body.rotation.x = THREE.MathUtils.degToRad(16)
-      cage.rotation.y = THREE.MathUtils.degToRad(-18)
-    } else {
-      timeline = createTimeline({
-        defaults: { ease: 'linear' },
-        autoplay: onScroll(scroll),
-      })
-      timeline
-        .add(shade, { t: 1, duration: 260, ease: 'inOut(2)' }, 30)
-        .add(body, { rotateY: 70, rotateX: 18, duration: 340 }, 0)
-        .add(cage, { rotateY: -100, rotateZ: 18, duration: 340 }, 0)
-        .add(ringRig, { rotateZ: 60, duration: 340 }, 0)
-        .add(ring2Rig, { rotateZ: -36, duration: 340 }, 0)
-        .add(flight, { dive: 1, roll: 2.2, duration: 340, ease: 'inOut(3)' }, 0)
-        .add(body, { rotateY: 150, rotateX: 8, duration: 120 }, 340)
-        .add(cage, { rotateY: -40, duration: 120 }, 340)
-        .add(flight, { dive: 0, roll: 0, duration: 240, ease: 'inOut(3)' }, 460)
-        .add(body, { rotateY: 250, rotateX: 14, duration: 240 }, 460)
-        .add(ringRig, { rotateZ: 150, rotateX: 12, duration: 240 }, 460)
-        .add(spread, { r: 2.24, duration: 220 }, 480)
-        .add(flight, { orbit: 1, roll: 1.4, duration: 300, ease: 'inOut(2)' }, 700)
-        .add(body, { rotateY: 980, rotateX: 30, duration: 300 }, 700)
-        .add(cage, { rotateY: 260, rotateZ: -30, duration: 300 }, 700)
-        .add(orbit, { rotateY: 320, duration: 300 }, 700)
-        .add(ringRig, { rotateZ: 300, duration: 300 }, 700)
-        .add(ring2Rig, { rotateZ: -200, duration: 300 }, 700)
-        .add(pulse, { scale: 1.04, duration: 140 }, 720)
-        .add(pulse, { scale: 1, duration: 140 }, 860)
-        .add(spread, { r: 2.02, duration: 160 }, 840)
-    }
-
-    const wireOnDark = new THREE.Color('#f6f4f2')
-    const wireOnLight = new THREE.Color('#252423')
-    const home = new THREE.Vector3(0, 0.05, 7.4)
-    const center = new THREE.Vector3()
-    const outward = new THREE.Vector3()
-    const insidePoint = new THREE.Vector3()
-    const desired = new THREE.Vector3()
-    let toneMix = 1
+    const opens = BOOKS.map(() => 0)
+    const view = { z: 7.8, y: 0.42 }
     let frame = 0
-    const clock = new THREE.Clock()
 
     const layout = () => {
       const width = el.clientWidth || window.innerWidth
@@ -252,113 +309,82 @@ export default function Engine() {
       const portrait = window.innerWidth <= window.innerHeight
       const mobile = window.innerWidth < 760 && portrait
       const landscapePhone = window.innerHeight < 520 && !portrait
-      const compact = window.innerWidth < 1100
       if (mobile) {
-        rig.position.set(0, -0.02, 0)
-        rig.scale.setScalar(width < 420 ? 0.8 : 0.88)
+        laptop.position.set(0, 0.28, 0)
+        laptop.scale.setScalar(0.74)
+        laptop.rotation.y = -0.1
+        shelf.position.set(0, 0.16, 0)
+        shelf.scale.setScalar(0.52)
+        shelf.rotation.y = -0.1
+        view.z = 3.4
+        view.y = 0.46
       } else if (landscapePhone) {
-        rig.position.set(2.35, 0, 0)
-        rig.scale.setScalar(0.48)
+        laptop.position.set(2.02, 0.1, 0)
+        laptop.scale.setScalar(0.74)
+        laptop.rotation.y = -0.28
+        shelf.position.set(1.9, 0.02, 0)
+        shelf.scale.setScalar(0.52)
+        shelf.rotation.y = -0.16
+        view.z = 5.5
+        view.y = 0.3
       } else {
-        rig.position.set(2.35, 0.06, 0)
-        rig.scale.setScalar(compact ? 0.76 : 0.94)
+        laptop.position.set(1.95, -0.05, 0)
+        laptop.scale.setScalar(0.9)
+        laptop.rotation.y = -0.38
+        shelf.position.set(1.22, -0.02, 0)
+        shelf.scale.setScalar(0.96)
+        shelf.rotation.y = -0.08
+        view.z = 7.8
+        view.y = 0.42
       }
       camera.aspect = width / Math.max(height, 1)
+      camera.position.set(0, view.y, view.z)
       camera.updateProjectionMatrix()
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 2 : 1.75))
       renderer.setSize(width, height, false)
+      cssRenderer.setSize(width, height)
       renderer.domElement.style.width = '100%'
       renderer.domElement.style.height = '100%'
     }
 
     const render = () => {
       frame = requestAnimationFrame(render)
-      const time = clock.getElapsedTime()
-      const portrait = window.innerWidth <= window.innerHeight
-      const mobile = window.innerWidth < 760 && portrait
-      const landscapePhone = window.innerHeight < 520 && !portrait
-      center.copy(rig.position)
-      outward.copy(home).sub(center)
-      const reach = Math.max(outward.length(), 0.001)
-      outward.multiplyScalar(1 / reach)
-      const worldRadius = 1.46 * rig.scale.x
-      const dive = reduce ? 0 : THREE.MathUtils.clamp(flight.dive, 0, 1)
-      const orbitTurn = reduce ? 0 : THREE.MathUtils.clamp(flight.orbit, 0, 1)
-      const closest = mobile ? Math.max(6.5, worldRadius * 5.25) : landscapePhone ? 6.55 : 6.35
-      const nearDist = Math.max(worldRadius * 2.2, Math.min(reach - 0.25, closest))
-      insidePoint.copy(center).addScaledVector(outward, nearDist)
-      desired.lerpVectors(home, insidePoint, dive)
-      desired.y += Math.sin(dive * Math.PI) * (mobile ? 0.04 : 0.16)
-      const orbitAngle = orbitTurn * Math.PI * 2
-      const ox = desired.x - center.x
-      const oy = desired.y - center.y
-      const oz = desired.z - center.z
-      const cos = Math.cos(orbitAngle)
-      const sin = Math.sin(orbitAngle)
-      camera.position.set(
-        center.x + ox * cos - oz * sin,
-        center.y + oy + Math.sin(orbitTurn * Math.PI) * (mobile ? 0.05 : landscapePhone ? 0.08 : 0.2),
-        center.z + ox * sin + oz * cos,
-      )
-      if (reduce) {
-        camera.position.copy(home)
-        camera.rotation.set(0, 0, 0)
-        spinner.rotation.y = 0.45
-      } else {
-        const park = mobile ? 0 : landscapePhone ? 0.22 : 0.3
-        camera.lookAt(center)
-        camera.rotateY(park)
-        const rollAmp = mobile ? 0.4 : landscapePhone ? 0.28 : 1
-        camera.rotateZ(THREE.MathUtils.degToRad(flight.roll * rollAmp))
-        spinner.rotation.y = time * 0.1 + orbitTurn * Math.PI * 2
-      }
-      depth.rotation.y = reduce ? 0 : -orbitAngle * 0.4
-      depth.position.set(reduce ? 0 : Math.sin(orbitAngle) * 0.16, reduce ? 0 : dive * 0.08, 0)
-      if (!reduce) {
-        far.rotation.y = time * 0.08 + orbitTurn * 0.8
-        halo.rotation.z = time * -0.1 - orbitTurn * 0.6
-        dust.rotation.y = time * 0.045 + orbitTurn * 0.5
-      }
-      const veil = (1 - dive * 0.82) * (1 - orbitTurn * 0.7)
-      farMat.opacity = 0.1 * veil
-      haloMat.opacity = 0.14 * veil
-      dustMat.opacity = 0.4 * veil
-      key.position.set(
-        center.x + Math.cos(orbitAngle) * 4.2,
-        5.4 + dive * 0.6,
-        center.z + 4 + Math.sin(orbitAngle) * 1.8,
-      )
+      const progress = heroProgress()
+      const closeT = reduce ? 1 : smooth((progress - 0.2) / 0.36)
+      const shelfT = reduce ? (progress > 0.55 ? 1 : 0) : smooth((progress - 0.56) / 0.26)
+      const laptopFade = 1 - shelfT
 
-      const mix = Math.min(1, Math.max(0, shade.t))
-      const eased = mix * mix * (3 - 2 * mix)
-      solidMat.opacity = 0.04 + eased * 0.96
-      wireMat.opacity = 0.92 - eased * 0.68
-      shellMat.opacity = eased
-      ring2Mat.opacity = (0.16 + (1 - eased) * 0.36) * (1 - dive * 0.85)
-      ringMat.opacity = 1 - dive * 0.78
-      const ringScale = 1 - Math.max(dive, orbitTurn) * 0.24
-      ringRig.scale.setScalar(ringScale)
-      ring2Rig.scale.setScalar(ringScale)
-      satMats.forEach((material) => {
-        material.transparent = true
-        material.opacity = 1 - dive * 0.7
+      lid.rotation.x = -1.94 * (1 - closeT) - 0.05 * closeT
+      laptop.visible = laptopFade > 0.04
+      shelf.visible = shelfT > 0.04
+      setFade(laptop, laptopFade)
+      setFade(shelf, shelfT)
+
+      books.forEach((item, index) => {
+        const target = reduce || shelfT < 0.35 ? 0 : bookFocus(BOOKS[index].id) * shelfT
+        opens[index] += (target - opens[index]) * (reduce ? 1 : 0.08)
+        item.hinge.rotation.y = -opens[index] * 2.15
+        item.pages.forEach((page) => {
+          page.rotation.y = -opens[index] * page.userData.fan
+          page.visible = opens[index] > 0.04
+        })
       })
-      if (!reduce) sats.rotation.z = time * 0.35
-      satHome.forEach(({ mesh, angle }) => {
-        mesh.position.set(Math.cos(angle) * spread.r, 0, Math.sin(angle) * spread.r)
+
+      const showScreen = !reduce && closeT < 0.72 && shelfT < 0.2
+      screenEl.style.opacity = showScreen ? String(1 - closeT * 0.35) : '0'
+      screenEl.style.pointerEvents = showScreen ? 'auto' : 'none'
+      screenEl.querySelectorAll('a').forEach((link) => {
+        link.style.pointerEvents = showScreen ? 'auto' : 'none'
       })
+      anchor.updateWorldMatrix(true, false)
+      anchor.matrixWorld.decompose(cssScreen.position, cssScreen.quaternion, cssScreen.scale)
 
       const lightStage = readTone(el) === 'light'
       if (el.classList.contains('is-light') !== lightStage) el.classList.toggle('is-light', lightStage)
-      const target = lightStage ? 0 : 1
-      toneMix += (target - toneMix) * 0.08
-      wireMat.color.copy(wireOnLight).lerp(wireOnDark, toneMix)
-      ring2Mat.color.copy(wireMat.color)
-      farMat.color.copy(wireMat.color)
-      haloMat.color.copy(wireMat.color)
-      dustMat.color.copy(wireMat.color)
 
+      camera.position.set(0, view.y, view.z)
       renderer.render(scene, camera)
+      cssRenderer.render(cssScene, camera)
     }
 
     layout()
@@ -372,17 +398,21 @@ export default function Engine() {
 
     return () => {
       cancelAnimationFrame(frame)
-      timeline?.revert()
       window.removeEventListener('resize', onResize)
       window.visualViewport?.removeEventListener('resize', onResize)
       observed.disconnect()
       renderer.dispose()
-      ;[sphereGeo, cageGeo, satGeo, ringGeo, ring2Geo, farGeo, haloGeo, dustGeo].forEach((geo) => geo.dispose())
-      ;[solidMat, shellMat, wireMat, ringMat, ring2Mat, farMat, haloMat, dustMat, ...satMats].forEach((mat) => mat.dispose())
-      ramp.dispose()
-      el.removeChild(renderer.domElement)
+      cssRenderer.domElement.remove()
+      ;[...laptopMats, ...shelfMats].forEach((mat) => mat.dispose())
+      textures.forEach((tex) => tex.dispose())
+      if (renderer.domElement.parentNode) renderer.domElement.remove()
     }
   }, [])
 
-  return <div ref={host} className="engine" aria-hidden="true" />
+  return (
+    <div ref={host} className="engine">
+      <div ref={glHost} className="engine-gl" />
+      <div ref={cssHost} className="engine-css" />
+    </div>
+  )
 }

@@ -9,6 +9,7 @@ export default function Chapter({
   tone = 'dark',
   titleId,
   hero = false,
+  book,
   children,
 }) {
   const ref = useRef(null)
@@ -20,6 +21,7 @@ export default function Chapter({
       id={id}
       className={`chapter tone-${tone}${hero ? ' is-hero' : ''}`}
       data-tone={tone}
+      data-book={book || undefined}
       aria-labelledby={titleId}
     >
       <div className="chapter-copy">

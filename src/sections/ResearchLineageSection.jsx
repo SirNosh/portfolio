@@ -4,7 +4,7 @@ import { links } from '../app/links'
 
 export default function ResearchLineageSection() {
   return (
-    <Chapter id="lineage" index="07" label="Lineage" tone="dark" titleId="lineage-title">
+    <Chapter id="lineage" index="07" label="Lineage" tone="dark" titleId="lineage-title" book="research">
       <h2 id="lineage-title">
         Different systems. The same recurring problem<span className="dot">.</span>
       </h2>

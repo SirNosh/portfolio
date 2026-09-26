@@ -1,8 +1,8 @@
 # Dev Vyas
 
-Single-page portfolio. Light parchment, a cel-shaded string, and one claim: what happens between the agents.
+Single-page portfolio. Warm black, a cel-shaded engine, and one claim: what happens between the agents.
 
-The motion is [anime.js](https://animejs.com/). The string is a Three.js `MeshToonMaterial` driven by scroll.
+The motion is [anime.js](https://animejs.com/). The object is a Three.js `MeshToonMaterial` scrubbed by scroll.
 
 ```
 npm install

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
-import ThreadCanvas from '../components/ThreadScene/ThreadCanvas'
+import { useCallback, useState } from 'react'
+import Engine from '../components/Engine/Engine'
 import Loader from '../components/Loader/Loader'
-import ProgressRail from '../components/ProgressRail/ProgressRail'
+import Topbar from '../components/Topbar/Topbar'
 import HeroSection from '../sections/HeroSection'
 import BlackBoxSection from '../sections/BlackBoxSection'
 import CausalResearchSection from '../sections/CausalResearchSection'
@@ -12,28 +12,15 @@ import ResearchLineageSection from '../sections/ResearchLineageSection'
 import ExperienceSection from '../sections/ExperienceSection'
 import WritingSection from '../sections/WritingSection'
 import ContactSection from '../sections/ContactSection'
-import { bindScrollMotion } from '../animation/scrollMotion'
-import { bindLoop } from '../animation/loopScroll'
 
 export default function App() {
   const [booting, setBooting] = useState(true)
   const finish = useCallback(() => setBooting(false), [])
 
-  useEffect(() => {
-    const root = document.getElementById('top')
-    const stopMotion = bindScrollMotion(root)
-    const stopLoop = bindLoop()
-    return () => {
-      stopMotion()
-      stopLoop()
-    }
-  }, [])
-
   return (
-    <div id="top" className="workspace">
-      <ThreadCanvas />
-      <ProgressRail />
-      <main>
+    <div className="site">
+      <Topbar />
+      <main id="scroll-root">
         <HeroSection />
         <BlackBoxSection />
         <CausalResearchSection />
@@ -44,8 +31,9 @@ export default function App() {
         <ExperienceSection />
         <WritingSection />
         <ContactSection />
-        <HeroSection loop />
       </main>
+      <Engine />
+      <div className="spectrum" aria-hidden="true" />
       {booting ? <Loader onFinish={finish} /> : null}
     </div>
   )

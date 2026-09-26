@@ -1,74 +1,52 @@
+@media (max-width: 1100px) {
+  .chapter-copy {
+    width: min(30rem, 50%);
+  }
+}
+
 @media (max-width: 760px) {
-  .sheet {
-    padding: 1.6rem 1rem 2rem;
+  .chapter {
+    align-items: flex-end;
+    min-height: 100svh;
+    padding: 46vh 1.25rem 3.5rem;
   }
 
-  .sheet-grid,
-  .split,
+  .chapter-copy,
+  .lede {
+    width: 100%;
+    max-width: none;
+  }
+
+  .display {
+    font-size: clamp(2.55rem, 11vw, 3.4rem);
+  }
+
+  .chapter h2 {
+    font-size: clamp(2rem, 8.5vw, 2.7rem);
+  }
+
+  .tiles,
+  .spec div,
   .layers {
     grid-template-columns: 1fr;
   }
 
-  .spine {
-    position: relative;
-    left: auto;
-    top: auto;
-    bottom: auto;
-    width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.55rem;
-    margin: 1rem 0 0;
+  .topbar {
+    padding-inline: 1rem;
   }
 
-  .study-slot,
-  .study-hand {
-    position: relative;
-    right: auto;
-    top: auto;
-    bottom: auto;
-    width: min(180px, 50vw);
-    margin-top: 1rem;
-  }
-
-  .display {
-    font-size: clamp(2.7rem, 12vw, 3.6rem);
-  }
-
-  .trace {
-    left: 0;
-    top: calc(100% + 6px);
-    width: min(16rem, 78vw);
-  }
-
-  .rail {
-    width: 1.6rem;
-    right: 0.25rem;
-  }
-
-  .rail-toggle {
-    display: inline;
-    position: relative;
-    z-index: 1;
-  }
-
-  .rail-label {
+  .topbar nav .section-link {
     display: none;
   }
 
-  .rail.is-open .rail-label {
-    display: inline;
+  .spectrum {
+    width: 34px;
+    height: 34px;
+    left: 0.85rem;
+    bottom: 0.85rem;
   }
 
-  .pin-bow {
-    position: relative;
-    left: auto;
-    top: auto;
-  }
-}
-
-@media (max-width: 1100px) {
-  .marginal {
-    max-width: none;
+  .loader {
+    padding: 8vh 1.25rem;
   }
 }

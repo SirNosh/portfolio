@@ -1,20 +1,12 @@
-import PaperSheet from '../components/PaperSheet/PaperSheet'
-import MarginalNote from '../components/MarginalNote/MarginalNote'
-import { Pin } from '../components/Pin/Knot'
+import Chapter from '../components/Chapter/Chapter'
 
 export default function WritingSection() {
   return (
-    <PaperSheet id="writing" index="09" label="Writing" titleId="writing-title" className="chapter-empty">
-      <div className="sheet-grid">
-        <div className="prose" data-copy>
-          <h2 id="writing-title">Writing</h2>
-          <p className="writing-line">None as of now :P</p>
-        </div>
-        <MarginalNote>Apparently, building the systems came first.</MarginalNote>
-      </div>
-      <div className="spine">
-        <Pin pin="g-write" />
-      </div>
-    </PaperSheet>
+    <Chapter id="writing" index="09" label="Writing" tone="dark" titleId="writing-title">
+      <h2 id="writing-title" className="display writing-line">
+        None as of now :P
+      </h2>
+      <p className="aside">Apparently, building the systems came first.</p>
+    </Chapter>
   )
 }

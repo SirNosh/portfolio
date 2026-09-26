@@ -1,7 +1,13 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
+import './styles/tokens.css'
+import './styles/global.css'
+import './styles/typography.css'
+import './styles/paper.css'
+import './styles/responsive.css'
+import App from './app/App.jsx'
+
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

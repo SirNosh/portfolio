@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { animate, onScroll } from 'animejs'
+import { createTimeline, onScroll } from 'animejs'
 import 'animejs/adapters/three'
 
 const SPECTRUM = [0xff4b4b, 0xff7a3c, 0xf2c14e, 0x3ddc97, 0x3ec6ff, 0x4d6bff, 0xb46bff]
@@ -107,20 +107,32 @@ export default function Engine() {
 
     const sats = new THREE.Group()
     const satMats = SPECTRUM.map((color) => new THREE.MeshBasicMaterial({ color }))
+    const satHome = []
     satMats.forEach((material, index) => {
       const mesh = new THREE.Mesh(satGeo, material)
       const angle = (index / satMats.length) * Math.PI * 2
-      mesh.position.set(Math.cos(angle) * 2.18, 0, Math.sin(angle) * 2.18)
+      mesh.position.set(Math.cos(angle) * 1.9, 0, Math.sin(angle) * 1.9)
       sats.add(mesh)
+      satHome.push({ mesh, angle })
     })
     sats.rotation.x = Math.PI / 2.35
 
-    const spun = new THREE.Group()
-    spun.add(shell, solid, wire, ring, ring2, sats)
-    spun.rotation.x = THREE.MathUtils.degToRad(14)
+    const body = new THREE.Group()
+    body.add(shell, solid)
+    body.rotation.x = THREE.MathUtils.degToRad(12)
+    const cage = new THREE.Group()
+    cage.add(wire)
+    const ringRig = new THREE.Group()
+    ringRig.add(ring)
+    const ring2Rig = new THREE.Group()
+    ring2Rig.add(ring2)
+    const orbit = new THREE.Group()
+    orbit.add(sats)
 
+    const pulse = new THREE.Group()
+    pulse.add(body, cage, ringRig, ring2Rig, orbit)
     const spinner = new THREE.Group()
-    spinner.add(spun)
+    spinner.add(pulse)
     const rig = new THREE.Group()
     rig.add(spinner)
     scene.add(rig)
@@ -141,19 +153,40 @@ export default function Engine() {
       sync: true,
     }
 
-    const spin = animate(spun, {
-      rotateY: reduce ? 28 : 680,
-      rotateX: reduce ? 18 : 32,
-      ease: 'linear',
-      autoplay: onScroll(scroll),
-    })
-
     const shade = { t: 0 }
-    const shadeAnim = animate(shade, {
-      t: 1,
-      ease: 'linear',
-      autoplay: onScroll(scroll),
-    })
+    const spread = { r: 1.9 }
+    let timeline = null
+
+    if (reduce) {
+      shade.t = 1
+      spread.r = 2.15
+      body.rotation.y = THREE.MathUtils.degToRad(28)
+      body.rotation.x = THREE.MathUtils.degToRad(16)
+      cage.rotation.y = THREE.MathUtils.degToRad(-18)
+    } else {
+      timeline = createTimeline({
+        defaults: { ease: 'linear' },
+        autoplay: onScroll(scroll),
+      })
+      timeline
+        .add(body, { rotateY: 80, rotateX: 24, duration: 240 }, 0)
+        .add(cage, { rotateY: -150, rotateZ: 28, duration: 420 }, 0)
+        .add(ringRig, { rotateZ: 70, duration: 360 }, 0)
+        .add(ring2Rig, { rotateZ: -50, duration: 360 }, 0)
+        .add(shade, { t: 0.12, duration: 240 }, 0)
+        .add(body, { rotateY: 250, rotateX: 6, duration: 280 }, 240)
+        .add(shade, { t: 1, duration: 280 }, 240)
+        .add(ringRig, { rotateZ: 190, rotateX: 16, duration: 420 }, 280)
+        .add(spread, { r: 2.42, duration: 320 }, 460)
+        .add(orbit, { rotateY: 160, duration: 540 }, 460)
+        .add(body, { rotateY: 520, rotateX: 32, duration: 280 }, 520)
+        .add(cage, { rotateY: -30, rotateZ: -12, duration: 480 }, 520)
+        .add(pulse, { scale: 1.03, duration: 220 }, 560)
+        .add(body, { rotateY: 680, rotateX: 14, duration: 200 }, 800)
+        .add(spread, { r: 2.12, duration: 200 }, 800)
+        .add(pulse, { scale: 1, duration: 200 }, 800)
+        .add(ring2Rig, { rotateZ: -140, duration: 400 }, 600)
+    }
 
     const wireOnDark = new THREE.Color('#f6f4f2')
     const wireOnLight = new THREE.Color('#252423')
@@ -192,13 +225,16 @@ export default function Engine() {
       if (!reduce) spinner.rotation.y = time * 0.12
       else spinner.rotation.y = 0.45
 
-      const step = Math.min(1, Math.max(0, (shade.t - 0.02) / 0.24))
-      const eased = step * step * (3 - 2 * step)
+      const mix = Math.min(1, Math.max(0, shade.t))
+      const eased = mix * mix * (3 - 2 * mix)
       solidMat.opacity = 0.04 + eased * 0.96
       wireMat.opacity = 0.92 - eased * 0.68
       shellMat.opacity = eased
       ring2Mat.opacity = 0.16 + (1 - eased) * 0.36
-      sats.rotation.z = reduce ? 0.2 : time * 0.22
+      if (!reduce) sats.rotation.z = time * 0.35
+      satHome.forEach(({ mesh, angle }) => {
+        mesh.position.set(Math.cos(angle) * spread.r, 0, Math.sin(angle) * spread.r)
+      })
 
       const lightStage = readTone(el) === 'light'
       if (el.classList.contains('is-light') !== lightStage) el.classList.toggle('is-light', lightStage)
@@ -221,8 +257,7 @@ export default function Engine() {
 
     return () => {
       cancelAnimationFrame(frame)
-      spin.revert()
-      shadeAnim.revert()
+      timeline?.revert()
       window.removeEventListener('resize', onResize)
       window.visualViewport?.removeEventListener('resize', onResize)
       observed.disconnect()

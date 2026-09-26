@@ -12,7 +12,7 @@ export default function ResearchLineageSection() {
         How should specialized components coordinate, adapt, preserve useful behavior, and decide what happens next?
       </p>
       <ol className="lineage">
-        <li data-reveal>
+        <li>
           <span className="n">01</span>
           <div>
             <h3>Recurrent computation</h3>
@@ -23,7 +23,7 @@ export default function ResearchLineageSection() {
             </p>
           </div>
         </li>
-        <li data-reveal>
+        <li>
           <span className="n">02</span>
           <div>
             <h3>Mixture of recurrent experts</h3>
@@ -32,7 +32,7 @@ export default function ResearchLineageSection() {
             </p>
           </div>
         </li>
-        <li data-reveal>
+        <li>
           <span className="n">03</span>
           <div>
             <h3>Continual learning and distribution shift</h3>
@@ -41,7 +41,7 @@ export default function ResearchLineageSection() {
             </p>
           </div>
         </li>
-        <li data-reveal>
+        <li>
           <span className="n">04</span>
           <div>
             <h3>Mixture of Bidders</h3>
@@ -54,7 +54,7 @@ export default function ResearchLineageSection() {
             </p>
           </div>
         </li>
-        <li data-reveal>
+        <li>
           <span className="n">05</span>
           <div>
             <h3>Entropy-based dynamic expert allocation</h3>
@@ -63,7 +63,7 @@ export default function ResearchLineageSection() {
             </p>
           </div>
         </li>
-        <li data-reveal>
+        <li>
           <span className="n">06</span>
           <div>
             <h3>PPO stability</h3>
@@ -75,7 +75,7 @@ export default function ResearchLineageSection() {
             </p>
           </div>
         </li>
-        <li data-reveal>
+        <li>
           <span className="n">07</span>
           <div>
             <h3>Agent harnesses</h3>
@@ -84,7 +84,7 @@ export default function ResearchLineageSection() {
             </p>
           </div>
         </li>
-        <li data-reveal>
+        <li>
           <span className="n">08</span>
           <div>
             <h3>Agent systems</h3>
@@ -93,7 +93,7 @@ export default function ResearchLineageSection() {
             </p>
           </div>
         </li>
-        <li data-reveal>
+        <li>
           <span className="n">09</span>
           <div>
             <h3>Causal orchestration</h3>

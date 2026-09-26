@@ -62,6 +62,7 @@ main {
   inset: 0;
   z-index: 2;
   pointer-events: none;
+  overflow: hidden;
 }
 
 .engine canvas {
@@ -177,6 +178,21 @@ main {
 
 .loader-mark span {
   color: var(--red);
+}
+
+.loader-rule {
+  display: block;
+  width: 7.5rem;
+  height: 16px;
+  margin: 0.85rem 0 0.2rem;
+}
+
+.loader-rule path {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 1.6;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
 }
 
 .loader-lead {

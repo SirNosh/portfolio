@@ -1,33 +1,40 @@
 import { useEffect, useRef } from 'react'
-import { animate, createDrawable, onScroll } from 'animejs'
+import { createDrawable, createTimeline, onScroll } from 'animejs'
 
 export default function Rule({ immediate = false }) {
   const ref = useRef(null)
 
   useEffect(() => {
-    const line = ref.current
-    if (!line) return undefined
+    const svg = ref.current
+    if (!svg) return undefined
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
 
-    const drawable = createDrawable(line)
-    const anim = animate(drawable, {
-      draw: ['0 0', '0 1'],
-      ease: 'inOut(3)',
-      duration: 700,
+    const strokes = createDrawable(svg.querySelectorAll('path'))
+    const timeline = createTimeline({
       autoplay: immediate
         ? true
         : onScroll({
-            target: line,
+            target: svg,
             enter: 'bottom 88%',
           }),
     })
 
-    return () => anim.revert()
+    strokes.forEach((stroke, index) => {
+      timeline.add(stroke, {
+        draw: ['0 0', '0 1'],
+        duration: 380,
+        ease: 'inOut(3)',
+      }, index * 140)
+    })
+
+    return () => timeline.revert()
   }, [immediate])
 
   return (
-    <svg className="rule" viewBox="0 0 120 2" aria-hidden="true">
-      <path ref={ref} d="M0 1 H120" />
+    <svg ref={ref} className="rule" viewBox="0 0 160 16" aria-hidden="true">
+      <path d="M0 12 H72" />
+      <path d="M78 12 H112" />
+      <path d="M118 4 L128 12 L138 4" />
     </svg>
   )
 }

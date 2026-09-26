@@ -36,7 +36,7 @@ export default function BlackBoxSection() {
       </ul>
       <dl className="spec">
         {decisions.map(([name, actor, reason, result]) => (
-          <div key={name} data-reveal>
+          <div key={name}>
             <dt>{name}</dt>
             <dd>
               {actor}. {reason}. {result}.

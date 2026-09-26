@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { bindSprings } from '../animation/springs'
 import Engine from '../components/Engine/Engine'
 import Loader from '../components/Loader/Loader'
 import Topbar from '../components/Topbar/Topbar'
@@ -17,8 +18,10 @@ export default function App() {
   const [booting, setBooting] = useState(true)
   const finish = useCallback(() => setBooting(false), [])
 
+  useEffect(() => bindSprings(document.getElementById('top')), [])
+
   return (
-    <div className="site">
+    <div id="top" className="site">
       <Topbar />
       <main id="scroll-root">
         <HeroSection />

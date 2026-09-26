@@ -1,0 +1,22 @@
+:root {
+  --paper: #f3ead7;
+  --paper-2: #e7dcc6;
+  --paper-3: #efe4cf;
+  --ink: #1c1915;
+  --graphite: #5c564c;
+  --faint: #8a8174;
+  --red: #8e3a2c;
+  --red-deep: #6e2d22;
+  --ochre: #8a6a32;
+  --blue: #3e5c68;
+  --moss: #4f6844;
+  --violet: #5e4d66;
+  --sepia: #7a6248;
+  --shadow: rgba(62, 42, 22, 0.16);
+  --display: "Schibsted Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  --body: "Schibsted Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --note: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --sheet: min(980px, calc(100% - 1rem));
+  color-scheme: light;
+}

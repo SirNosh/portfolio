@@ -4,11 +4,30 @@
   }
 }
 
+/* iPhone 17 / 18 / Pro / Pro Max portrait, and the narrower phones beside them. */
 @media (max-width: 760px) {
+  .engine {
+    top: var(--header-block);
+    right: 0;
+    bottom: auto;
+    left: 0;
+    height: var(--stage);
+    background: var(--bg);
+  }
+
+  .engine.is-light {
+    background: var(--cream);
+  }
+
   .chapter {
-    align-items: flex-end;
+    align-items: flex-start;
     min-height: 100svh;
-    padding: 46vh 1.25rem 3.5rem;
+    padding:
+      calc(var(--header-block) + var(--stage) + 0.85rem)
+      max(1.15rem, var(--sar))
+      calc(1.75rem + var(--sab))
+      max(1.15rem, var(--sal));
+    scroll-margin-top: 0;
   }
 
   .chapter-copy,
@@ -17,12 +36,18 @@
     max-width: none;
   }
 
-  .display {
-    font-size: clamp(2.55rem, 11vw, 3.4rem);
+  .display,
+  .writing-line {
+    font-size: clamp(2.35rem, 10.2vw, 3.15rem);
   }
 
   .chapter h2 {
-    font-size: clamp(2rem, 8.5vw, 2.7rem);
+    font-size: clamp(1.85rem, 7.6vw, 2.45rem);
+  }
+
+  .lede,
+  .chapter p {
+    font-size: 1.05rem;
   }
 
   .tiles,
@@ -31,8 +56,8 @@
     grid-template-columns: 1fr;
   }
 
-  .topbar {
-    padding-inline: 1rem;
+  .topbar nav {
+    gap: 0.15rem;
   }
 
   .topbar nav .section-link {
@@ -40,13 +65,64 @@
   }
 
   .spectrum {
-    width: 34px;
-    height: 34px;
-    left: 0.85rem;
-    bottom: 0.85rem;
+    display: none;
+  }
+
+  .code {
+    font-size: 0.72rem;
+    max-width: 100%;
   }
 
   .loader {
-    padding: 8vh 1.25rem;
+    padding: calc(var(--sat) + 1.5rem) max(1.15rem, var(--sar)) calc(2rem + var(--sab)) max(1.15rem, var(--sal));
+  }
+
+  .loader-mark {
+    font-size: clamp(2.8rem, 14vw, 4.2rem);
+  }
+}
+
+/* iPhone landscape: short, wide, and the island sits on the side. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .engine {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: auto;
+    background: transparent;
+  }
+
+  .chapter {
+    align-items: center;
+    min-height: 100svh;
+    padding:
+      calc(var(--sat) + 3.4rem)
+      max(1.25rem, var(--sar))
+      calc(1rem + var(--sab))
+      max(1.25rem, var(--sal));
+    scroll-margin-top: var(--header-block);
+  }
+
+  .chapter-copy {
+    width: min(22rem, 50vw);
+  }
+
+  .display,
+  .writing-line {
+    font-size: clamp(1.7rem, 5.2vh, 2.4rem);
+  }
+
+  .chapter h2 {
+    font-size: clamp(1.45rem, 4.6vh, 2rem);
+  }
+
+  .lede,
+  .chapter p {
+    font-size: 0.98rem;
+  }
+
+  .spectrum {
+    display: none;
   }
 }

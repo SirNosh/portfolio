@@ -22,7 +22,8 @@ export default function Topbar() {
       const progress = max > 0 ? window.scrollY / max : 0
       if (bar.current) bar.current.style.transform = `scaleX(${progress})`
 
-      const mark = 40
+      const header = document.querySelector('.topbar')
+      const mark = header ? header.getBoundingClientRect().bottom : 40
       let tone = 'dark'
       document.querySelectorAll('.chapter').forEach((section) => {
         const rect = section.getBoundingClientRect()

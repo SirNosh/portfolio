@@ -3,10 +3,11 @@
   --muted: #b7b3ae;
   --line: rgba(246, 244, 242, 0.16);
   min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   align-items: center;
-  padding: 14vh 7vw 12vh;
-  scroll-margin-top: 4.5rem;
+  padding: 14vh max(7vw, var(--sar)) 12vh max(7vw, var(--sal));
+  scroll-margin-top: var(--header-block);
   color: var(--fg);
   background: transparent;
 }
@@ -21,6 +22,7 @@
 
 .chapter-copy {
   width: min(34rem, 46%);
+  min-width: 0;
 }
 
 .is-hero {

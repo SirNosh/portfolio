@@ -4,6 +4,8 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html,
@@ -11,6 +13,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
+  overflow-x: clip;
 }
 
 body {
@@ -37,6 +40,7 @@ input {
 
 a {
   color: inherit;
+  -webkit-tap-highlight-color: transparent;
 }
 
 :focus-visible {
@@ -105,8 +109,8 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.4rem 0.85rem;
+  gap: 0.75rem;
+  padding: calc(var(--sat) + 0.35rem) max(1.15rem, var(--sar)) 0.45rem max(1.15rem, var(--sal));
   color: var(--fg);
 }
 
@@ -120,9 +124,12 @@ main {
   font-size: 0.72rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
-.brand {
+.topbar .brand {
   font-family: var(--display);
   font-size: 1.05rem;
   font-weight: 600;
@@ -156,7 +163,7 @@ main {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 10vh 7vw;
+  padding: 10vh max(7vw, var(--sar)) calc(10vh + var(--sab)) max(7vw, var(--sal));
 }
 
 .loader-mark {

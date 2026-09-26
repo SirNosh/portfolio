@@ -20,8 +20,10 @@ function markReady() {
   window.dispatchEvent(new Event('portfolio:webgl'))
 }
 
-function readTone() {
-  const mark = window.innerHeight * 0.5
+function readTone(host) {
+  const narrow = window.innerWidth < 760
+  const stageBottom = host?.getBoundingClientRect().bottom ?? 0
+  const mark = narrow && stageBottom > 0 ? stageBottom - 4 : window.innerHeight * 0.45
   let tone = 'dark'
   document.querySelectorAll('.chapter').forEach((section) => {
     const rect = section.getBoundingClientRect()
@@ -49,7 +51,8 @@ export default function Engine() {
       return undefined
     }
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75))
+    const narrowScreen = () => window.innerWidth < 760
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, narrowScreen() ? 2 : 1.75))
     renderer.setSize(window.innerWidth, window.innerHeight)
     renderer.setClearColor(0x000000, 0)
     renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -159,14 +162,28 @@ export default function Engine() {
     const clock = new THREE.Clock()
 
     const layout = () => {
-      const width = window.innerWidth
-      const mobile = width < 760
-      const compact = width < 1100
-      rig.position.set(mobile ? 0 : 2.35, mobile ? 1.22 : 0.06, 0)
-      rig.scale.setScalar(mobile ? 0.56 : compact ? 0.76 : 0.94)
-      camera.aspect = width / window.innerHeight
+      const width = el.clientWidth || window.innerWidth
+      const height = el.clientHeight || window.innerHeight
+      const portrait = window.innerWidth <= window.innerHeight
+      const mobile = window.innerWidth < 760 && portrait
+      const landscapePhone = window.innerHeight < 520 && !portrait
+      const compact = window.innerWidth < 1100
+      if (mobile) {
+        rig.position.set(0, -0.02, 0)
+        rig.scale.setScalar(width < 420 ? 0.8 : 0.88)
+      } else if (landscapePhone) {
+        rig.position.set(2.35, 0, 0)
+        rig.scale.setScalar(0.48)
+      } else {
+        rig.position.set(2.35, 0.06, 0)
+        rig.scale.setScalar(compact ? 0.76 : 0.94)
+      }
+      camera.aspect = width / Math.max(height, 1)
       camera.updateProjectionMatrix()
-      renderer.setSize(width, window.innerHeight)
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 2 : 1.75))
+      renderer.setSize(width, height, false)
+      renderer.domElement.style.width = '100%'
+      renderer.domElement.style.height = '100%'
     }
 
     const render = () => {
@@ -183,7 +200,9 @@ export default function Engine() {
       ring2Mat.opacity = 0.16 + (1 - eased) * 0.36
       sats.rotation.z = reduce ? 0.2 : time * 0.22
 
-      const target = readTone() === 'light' ? 0 : 1
+      const lightStage = readTone(el) === 'light'
+      if (el.classList.contains('is-light') !== lightStage) el.classList.toggle('is-light', lightStage)
+      const target = lightStage ? 0 : 1
       toneMix += (target - toneMix) * 0.08
       wireMat.color.copy(wireOnLight).lerp(wireOnDark, toneMix)
       ring2Mat.color.copy(wireMat.color)
@@ -194,13 +213,19 @@ export default function Engine() {
     layout()
     render()
     markReady()
-    window.addEventListener('resize', layout)
+    const onResize = () => layout()
+    window.addEventListener('resize', onResize)
+    window.visualViewport?.addEventListener('resize', onResize)
+    const observed = new ResizeObserver(onResize)
+    observed.observe(el)
 
     return () => {
       cancelAnimationFrame(frame)
       spin.revert()
       shadeAnim.revert()
-      window.removeEventListener('resize', layout)
+      window.removeEventListener('resize', onResize)
+      window.visualViewport?.removeEventListener('resize', onResize)
+      observed.disconnect()
       renderer.dispose()
       ;[sphereGeo, cageGeo, satGeo, ringGeo, ring2Geo].forEach((geo) => geo.dispose())
       ;[solidMat, shellMat, wireMat, ringMat, ring2Mat, ...satMats].forEach((mat) => mat.dispose())

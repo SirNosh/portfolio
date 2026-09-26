@@ -597,8 +597,8 @@ function paintPage(page: NewsletterBookPage, pageNumber: number, total: number):
   let chosen: { y: number; draw: (ctx: CanvasRenderingContext2D) => PageLinkHit[] } | null = null;
 
   for (let attempt = 0; attempt < 7; attempt += 1) {
-    const titleSize = Math.round(92 * scale);
-    const bodySize = Math.round(40 * scale);
+    const titleSize = Math.round(118 * scale);
+    const bodySize = Math.round(46 * scale);
     const smallSize = Math.round(28 * scale);
     const lineGap = Math.round(14 * scale);
     let y = padTop;
@@ -723,10 +723,10 @@ function paintPage(page: NewsletterBookPage, pageNumber: number, total: number):
   const links = chosen?.draw(context) ?? [];
 
   context.fillStyle = "#8b8174";
-  context.font = '500 26px "IBM Plex Mono", ui-monospace, monospace';
-  context.textAlign = "center";
+  context.font = '500 28px "IBM Plex Mono", ui-monospace, monospace';
+  context.textAlign = "right";
   context.textBaseline = "middle";
-  context.fillText(`${pageNumber + 1}  /  ${total}`, width / 2, height - 58);
+  context.fillText(String(pageNumber + 1), width - 78, height - 58);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -819,6 +819,7 @@ function Book({
   const closedRef = useRef<THREE.Mesh>(null);
   const openRig = useRef<THREE.Group>(null);
   const coverHinge = useRef<THREE.Group>(null);
+  const coverOutside = useRef<THREE.Mesh>(null);
   const flipHinge = useRef<THREE.Group>(null);
   const openT = useRef(0);
   const flipT = useRef(0);
@@ -939,14 +940,14 @@ function Book({
     const visibleHeight =
       2 * Math.tan((((perspective.fov || 35) * Math.PI) / 180) / 2) * distance;
     const visibleWidth = visibleHeight * Math.max(perspective.aspect, 0.2);
-    const footprint = portrait ? book.depth * 0.94 : book.depth * 1.76;
+    const footprint = portrait ? book.depth * 1.15 : book.depth * 2.15;
     const fit = Math.min(
-      (visibleHeight * 0.86) / book.bookHeight,
-      (visibleWidth * 0.92) / footprint,
+      (visibleHeight * 0.7) / book.bookHeight,
+      (visibleWidth * 0.74) / footprint,
     );
-    const targetScale = selected ? THREE.MathUtils.clamp(fit, 0.4, 1.3) : 1;
-    const targetRotationY = selected ? -Math.PI / 2 + orbit.current.yaw : 0;
-    const targetRotationX = selected ? orbit.current.pitch : 0;
+    const targetScale = selected ? THREE.MathUtils.clamp(fit, 0.35, 1.15) : 1;
+    const targetRotationY = selected ? -Math.PI / 2 + 0.42 + orbit.current.yaw : 0;
+    const targetRotationX = selected ? -0.28 + orbit.current.pitch : 0;
 
     const flight = selected ? focusFlight.current : null;
     if (flight) {
@@ -1042,7 +1043,8 @@ function Book({
     const openTarget = selected && hasPages ? 1 : 0;
     openT.current = damp(openT.current, openTarget, reducedMotion ? 1000 : 3.4, delta);
     const opened = easeInOutCubic(THREE.MathUtils.clamp((openT.current - 0.16) / 0.84, 0, 1));
-    if (coverHinge.current) coverHinge.current.rotation.y = -3.04 * opened;
+    if (coverHinge.current) coverHinge.current.rotation.y = -Math.PI * 0.96 * opened;
+    if (coverOutside.current) coverOutside.current.visible = opened < 0.78;
     if (closedRef.current) {
       const showClosed = !hasPages || openT.current < 0.3;
       closedRef.current.visible = showClosed;
@@ -1213,8 +1215,17 @@ function Book({
               </mesh>
             </group>
           ) : null}
+          <mesh position={[book.width / 2 - 0.07, 0, pageW / 2 + 0.02]} raycast={() => {}}>
+            <boxGeometry args={[0.1, pageH * 1.02, 0.07]} />
+            <meshStandardMaterial color={book.color} roughness={0.8} />
+          </mesh>
+          <mesh position={[book.width / 2 - 0.09, 0, -pageW / 2 - 0.015]} raycast={() => {}}>
+            <boxGeometry args={[0.16, pageH * 0.98, 0.05]} />
+            <meshStandardMaterial color="#efe6d4" roughness={0.95} />
+          </mesh>
           <group ref={coverHinge} position={[book.width / 2, 0, book.depth / 2]}>
             <mesh
+              ref={coverOutside}
               position={[0.028, 0, -book.depth / 2]}
               rotation={[0, Math.PI / 2, 0]}
               renderOrder={34}

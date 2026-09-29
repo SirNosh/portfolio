@@ -1332,13 +1332,17 @@ export function NewsletterBookshelf({
     (bookIndex: number, delta: number) => {
       if (bookIndex !== selectedIndex || pageTurning.current) return;
       const total = books[bookIndex]?.pages?.length ?? 0;
+      if (total > 0 && delta > 0 && pageIndex === total - 1) {
+        close();
+        return;
+      }
       if (total < 2) return;
       const next = THREE.MathUtils.clamp(pageIndex + delta, 0, total - 1);
       if (next === pageIndex) return;
       pageTurning.current = true;
       setPageIndex(next);
     },
-    [books, pageIndex, selectedIndex],
+    [books, close, pageIndex, selectedIndex],
   );
 
   const switchFocused = useCallback(
@@ -1441,7 +1445,7 @@ export function NewsletterBookshelf({
             close();
           } else if (event.key === "ArrowRight") {
             event.preventDefault();
-            if (selectedIndex !== null && (books[selectedIndex]?.pages?.length ?? 0) > 1) {
+            if (selectedIndex !== null && (books[selectedIndex]?.pages?.length ?? 0) > 0) {
               turnPage(selectedIndex, 1);
             } else if (selectedIndex !== null) switchFocused(1);
             else {
@@ -1464,7 +1468,7 @@ export function NewsletterBookshelf({
           } else if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             if (selectedIndex === null) selectBook(currentIndex);
-            else if ((books[selectedIndex]?.pages?.length ?? 0) > 1) turnPage(selectedIndex, 1);
+            else if ((books[selectedIndex]?.pages?.length ?? 0) > 0) turnPage(selectedIndex, 1);
             else openBook(selectedIndex);
           }
         }}

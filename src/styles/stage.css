@@ -11,18 +11,20 @@
 }
 
 .laptop-screen {
-  width: 640px;
-  height: 400px;
+  width: 960px;
+  height: 624px;
   box-sizing: border-box;
-  padding: 28px 36px 20px;
+  padding: 70px 86px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 10px;
-  background: #121110;
+  gap: 26px;
+  background: radial-gradient(ellipse at 15% 0%, #29302d, #121614 75%);
   color: #f6f4f2;
   font-family: Barlow, "Avenir Next", sans-serif;
   overflow: hidden;
+  border-radius: 16px;
+  clip-path: polygon(0 0, 44% 0, 44% 4%, 56% 4%, 56% 0, 100% 0, 100% 100%, 0 100%);
 }
 
 .laptop-screen .screen-name,
@@ -34,7 +36,7 @@
 }
 
 .laptop-screen .screen-name {
-  font-size: 52px;
+  font-size: 92px;
 }
 
 .laptop-screen .screen-role,
@@ -45,8 +47,8 @@
 }
 
 .laptop-screen .screen-role {
-  max-width: 22em;
-  font-size: 22px;
+  max-width: 20em;
+  font-size: 34px;
   line-height: 1.3;
 }
 
@@ -65,30 +67,120 @@
   min-height: 48px;
   color: inherit;
   text-decoration: none;
-  border-bottom: 2px solid #ff4b4b;
+  border-bottom: 1px solid #9c9c88;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   pointer-events: auto;
 }
 
 .laptop-screen a {
-  min-height: 140px;
-  padding: 0 8px;
-  font-size: 22px;
+  min-height: 72px;
+  gap: 16px;
+  font-size: 28px;
+  transition: color 180ms ease, border-color 180ms ease;
+}
+
+.laptop-screen a:hover {
+  color: #d8c6a4;
+  border-color: #d8c6a4;
+}
+
+.engine-fallback {
+  display: none;
+}
+
+.engine.has-error {
+  position: absolute;
+  bottom: auto;
+  height: 100svh;
+}
+
+.site:has(.engine.has-error) .reel {
+  height: 100svh;
+}
+
+.site:has(.engine.has-error) .shelf-stage {
+  position: relative;
+  transform: none;
+}
+
+.engine.has-error .engine-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2rem;
+  position: absolute;
+  inset: 25% 10%;
+  pointer-events: auto;
+}
+
+.engine-fallback .screen-name {
+  font-size: clamp(3rem, 8vw, 6rem);
 }
 
 .reel {
-  height: 130vh;
+  height: 420svh;
+}
+
+.background-toggle {
+  position: fixed;
+  top: max(1rem, var(--sat));
+  right: max(1rem, var(--sar));
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.background-toggle:hover {
+  border-color: currentColor;
+}
+
+.background-toggle svg {
+  width: 22px;
+  height: 22px;
 }
 
 .shelf-stage {
-  position: relative;
+  position: fixed;
+  inset: 0;
+  z-index: 3;
   height: 100svh;
   min-height: 100svh;
+  transform: translate3d(var(--shelf-x, -112%), 0, 0);
+  will-change: transform;
 }
 
 .shelf-fit {
   height: 100%;
   background: transparent;
+}
+
+@media (max-width: 760px) {
+  .laptop-screen {
+    padding: 64px;
+    gap: 24px;
+  }
+
+  .laptop-screen .screen-name {
+    font-size: 124px;
+  }
+
+  .laptop-screen .screen-role {
+    font-size: 48px;
+    line-height: 1.25;
+  }
+
+  .laptop-screen a {
+    font-size: 44px;
+    min-height: 140px;
+  }
+
 }

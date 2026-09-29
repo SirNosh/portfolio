@@ -3,7 +3,7 @@
 /* eslint-disable react/no-unknown-property */
 
 import { cn } from "@/lib/utils";
-import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, type ThreeEvent, useFrame, useThree, useLoader } from "@react-three/fiber";
 import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -14,7 +14,7 @@ import {
   useState,
 } from "react";
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 export interface NewsletterBookPage {
   title: string;
@@ -48,7 +48,6 @@ export interface NewsletterBookshelfProps {
   items?: NewsletterBookshelfItem[];
   className?: string;
   height?: number | string;
-  brand?: string;
   onSelect?: (item: NewsletterBookshelfItem, index: number) => void;
   onClose?: () => void;
 }
@@ -176,7 +175,7 @@ function deriveLayout(items: NewsletterBookshelfItem[]) {
       item.foil ?? (luminance(color) < 0.5 ? "#f2ead8" : "#3030ff");
     if (random() < 0.14) cursor += 0.2;
     const x = cursor + width / 2;
-    cursor += width + 0.065;
+    cursor += width + bookHeight * 0.48;
     return {
       ...item,
       x,
@@ -188,114 +187,6 @@ function deriveLayout(items: NewsletterBookshelfItem[]) {
       foil,
     };
   });
-}
-
-function roundedRect(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-) {
-  context.beginPath();
-  context.roundRect(x, y, width, height, radius);
-}
-
-function drawMotif(
-  context: CanvasRenderingContext2D,
-  motif: number,
-  x: number,
-  y: number,
-  size: number,
-  color: string,
-) {
-  context.save();
-  context.translate(x + size / 2, y + size / 2);
-  context.strokeStyle = color;
-  context.fillStyle = color;
-  context.lineWidth = Math.max(2, size * 0.035);
-
-  if (motif === 0) {
-    for (let index = -2; index <= 2; index += 1) {
-      context.beginPath();
-      context.arc(0, 0, size * (0.12 + index * 0.035), 0, Math.PI * 2);
-      context.stroke();
-    }
-  } else if (motif === 1) {
-    context.rotate(Math.PI / 4);
-    for (let index = -1; index <= 1; index += 1) {
-      context.strokeRect(
-        -size * (0.24 + index * 0.055),
-        -size * (0.24 + index * 0.055),
-        size * (0.48 + index * 0.11),
-        size * (0.48 + index * 0.11),
-      );
-    }
-  } else if (motif === 2) {
-    for (let index = 0; index < 6; index += 1) {
-      context.rotate(Math.PI / 3);
-      roundedRect(context, -size * 0.045, -size * 0.36, size * 0.09, size * 0.28, size * 0.04);
-      context.fill();
-    }
-    context.beginPath();
-    context.arc(0, 0, size * 0.11, 0, Math.PI * 2);
-    context.fill();
-  } else if (motif === 3) {
-    context.beginPath();
-    for (let index = 0; index < 12; index += 1) {
-      const radius = index % 2 ? size * 0.17 : size * 0.35;
-      const angle = -Math.PI / 2 + (index * Math.PI) / 6;
-      const px = Math.cos(angle) * radius;
-      const py = Math.sin(angle) * radius;
-      if (index === 0) context.moveTo(px, py);
-      else context.lineTo(px, py);
-    }
-    context.closePath();
-    context.stroke();
-  } else if (motif === 4) {
-    for (let row = -2; row <= 2; row += 1) {
-      for (let column = -2; column <= 2; column += 1) {
-        if ((row + column) % 2 === 0) {
-          context.beginPath();
-          context.arc(column * size * 0.13, row * size * 0.13, size * 0.035, 0, Math.PI * 2);
-          context.fill();
-        }
-      }
-    }
-  } else if (motif === 5) {
-    for (let index = -2; index <= 2; index += 1) {
-      context.beginPath();
-      context.moveTo(-size * 0.34, index * size * 0.12);
-      context.bezierCurveTo(
-        -size * 0.12,
-        index * size * 0.12 - size * 0.11,
-        size * 0.12,
-        index * size * 0.12 + size * 0.11,
-        size * 0.34,
-        index * size * 0.12,
-      );
-      context.stroke();
-    }
-  } else if (motif === 6) {
-    context.beginPath();
-    context.moveTo(0, -size * 0.37);
-    context.lineTo(size * 0.34, size * 0.28);
-    context.lineTo(-size * 0.34, size * 0.28);
-    context.closePath();
-    context.stroke();
-    context.beginPath();
-    context.arc(0, size * 0.02, size * 0.11, 0, Math.PI * 2);
-    context.fill();
-  } else {
-    context.rotate(Math.PI / 4);
-    context.fillRect(-size * 0.035, -size * 0.36, size * 0.07, size * 0.72);
-    context.fillRect(-size * 0.36, -size * 0.035, size * 0.72, size * 0.07);
-    context.beginPath();
-    context.arc(0, 0, size * 0.25, 0, Math.PI * 2);
-    context.stroke();
-  }
-  context.restore();
 }
 
 function addTexture(
@@ -313,61 +204,6 @@ function addTexture(
     image.data[offset + 2] = Math.max(0, Math.min(255, image.data[offset + 2]! + noise));
   }
   context.putImageData(image, 0, 0);
-}
-
-function drawClothWeave(
-  context: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  seed: number,
-) {
-  const random = seeded(seed);
-  context.save();
-  context.lineCap = "round";
-
-  context.globalCompositeOperation = "multiply";
-  for (let x = 0.5; x < width; x += 3) {
-    context.strokeStyle = `rgba(18, 16, 14, ${0.03 + random() * 0.035})`;
-    context.lineWidth = 0.35 + random() * 0.3;
-    context.beginPath();
-    context.moveTo(x + (random() - 0.5) * 0.5, 0);
-    context.lineTo(x + (random() - 0.5) * 0.5, height);
-    context.stroke();
-  }
-
-  context.globalCompositeOperation = "screen";
-  for (let y = 0.5; y < height; y += 3) {
-    context.strokeStyle = `rgba(255, 248, 232, ${0.035 + random() * 0.03})`;
-    context.lineWidth = 0.3 + random() * 0.25;
-    context.beginPath();
-    context.moveTo(0, y + (random() - 0.5) * 0.5);
-    context.lineTo(width, y + (random() - 0.5) * 0.5);
-    context.stroke();
-  }
-
-  context.globalCompositeOperation = "overlay";
-  for (let index = 0; index < Math.floor((width * height) / 850); index += 1) {
-    const x = random() * width;
-    const y = random() * height;
-    const length = 3 + random() * 13;
-    context.strokeStyle = `rgba(255, 255, 255, ${0.035 + random() * 0.055})`;
-    context.lineWidth = 0.35 + random() * 0.4;
-    context.beginPath();
-    context.moveTo(x, y);
-    context.lineTo(x + (random() - 0.5) * 2, y + length);
-    context.stroke();
-  }
-
-  context.globalCompositeOperation = "source-over";
-  const edgeShade = context.createLinearGradient(0, 0, width, 0);
-  edgeShade.addColorStop(0, "rgba(0,0,0,.16)");
-  edgeShade.addColorStop(0.045, "rgba(0,0,0,.025)");
-  edgeShade.addColorStop(0.5, "rgba(255,255,255,.025)");
-  edgeShade.addColorStop(0.955, "rgba(0,0,0,.025)");
-  edgeShade.addColorStop(1, "rgba(0,0,0,.18)");
-  context.fillStyle = edgeShade;
-  context.fillRect(0, 0, width, height);
-  context.restore();
 }
 
 function paperTexture(book: BookLayout) {
@@ -432,83 +268,85 @@ function paperTexture(book: BookLayout) {
   return texture;
 }
 
-function coverTexture(book: BookLayout, brand: string, face: "cover" | "spine") {
-  if (typeof document === "undefined") return null;
+function coverTexture(book: BookLayout, image: CanvasImageSource) {
+  const atlas = hardcoverTexture(book, image);
   const canvas = document.createElement("canvas");
-  canvas.width = face === "cover" ? 512 : 112;
+  canvas.width = 512;
   canvas.height = 768;
-  const context = canvas.getContext("2d");
-  if (!context) return null;
-
-  context.fillStyle = book.color;
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  addTexture(
-    context,
-    canvas.width,
-    canvas.height,
-    hash(`${book.id}-${face}-noise`),
-  );
-  drawClothWeave(
-    context,
-    canvas.width,
-    canvas.height,
-    hash(`${book.id}-${face}-weave`),
-  );
-  context.fillStyle = book.foil;
-  context.strokeStyle = book.foil;
-  context.textBaseline = "top";
-  context.shadowColor = "rgba(0, 0, 0, .3)";
-  context.shadowBlur = 1.4;
-  context.shadowOffsetX = 0.8;
-  context.shadowOffsetY = 1.1;
-
-  if (face === "cover") {
-    const margin = 58;
-    context.font = "500 21px ui-monospace, SFMono-Regular, monospace";
-    context.fillText(book.date, margin, 58);
-    context.font = "700 54px Georgia, serif";
-    const words = book.title.split(/\s+/);
-    const lines: string[] = [];
-    let line = "";
-    for (const word of words) {
-      const next = line ? `${line} ${word}` : word;
-      if (context.measureText(next).width < canvas.width - margin * 2 || !line) line = next;
-      else {
-        lines.push(line);
-        line = word;
-      }
-    }
-    if (line) lines.push(line);
-    lines.slice(0, 5).forEach((text, index) => context.fillText(text, margin, 180 + index * 61));
-    context.fillRect(margin, 180 + Math.min(lines.length, 5) * 61 + 24, 92, 5);
-    drawMotif(context, book.motif, 316, 510, 130, book.foil);
-    context.font = "700 19px ui-monospace, SFMono-Regular, monospace";
-    context.fillText(brand.toUpperCase(), margin, 690);
-  } else {
-    const gradient = context.createLinearGradient(0, 0, canvas.width, 0);
-    gradient.addColorStop(0, "rgba(0,0,0,.28)");
-    gradient.addColorStop(0.18, "rgba(0,0,0,0)");
-    gradient.addColorStop(0.82, "rgba(0,0,0,0)");
-    gradient.addColorStop(1, "rgba(0,0,0,.28)");
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = book.foil;
-    context.fillRect(22, 26, canvas.width - 44, 3);
-    context.fillRect(22, 704, canvas.width - 44, 3);
-    context.save();
-    context.translate(canvas.width / 2, 58);
-    context.rotate(Math.PI / 2);
-    context.font = "700 37px Georgia, serif";
-    const title = book.title.length > 36 ? `${book.title.slice(0, 34)}…` : book.title;
-    context.fillText(title, 0, 13);
-    context.restore();
-    drawMotif(context, book.motif, 29, 625, 54, book.foil);
-  }
-
+  canvas.getContext("2d")!.drawImage(atlas.image, 580, 350, 425, 665, 0, 0, 512, 768);
+  atlas.dispose();
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
-  texture.needsUpdate = true;
+  return texture;
+}
+
+function endpaperTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 512;
+  const context = canvas.getContext("2d")!;
+  const shade = context.createLinearGradient(0, 0, 512, 0);
+  shade.addColorStop(0, "#eee7d9");
+  shade.addColorStop(0.12, "#f4efe4");
+  shade.addColorStop(0.92, "#f4efe4");
+  shade.addColorStop(1, "#d9cebb");
+  context.fillStyle = shade;
+  context.fillRect(0, 0, 512, 512);
+  const random = seeded(37);
+  for (let index = 0; index < 9000; index += 1) {
+    context.fillStyle = `rgba(99, 78, 48, ${random() * 0.035})`;
+    context.fillRect(random() * 512, random() * 512, 1, 1);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function paperGeometry(width: number, height: number) {
+  const geometry = new THREE.PlaneGeometry(width, height, 32, 2);
+  const position = geometry.attributes.position;
+  for (let index = 0; index < position.count; index += 1) {
+    const u = (position.getX(index) + width / 2) / width;
+    position.setZ(index, Math.sin(u * Math.PI) * width * 0.014);
+  }
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function hardcoverTexture(book: BookLayout, image: CanvasImageSource) {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 1024;
+  const context = canvas.getContext("2d")!;
+  context.drawImage(image, 0, 0, 1024, 1024);
+  context.globalCompositeOperation = "multiply";
+  context.globalAlpha = 0.65;
+  context.fillStyle = book.color;
+  context.fillRect(0, 332, 1024, 692);
+  context.globalCompositeOperation = "source-over";
+  context.globalAlpha = 1;
+  context.fillStyle = book.foil;
+  context.strokeStyle = book.foil;
+  context.textBaseline = "top";
+  context.lineWidth = 1;
+  context.globalAlpha = 0.65;
+  context.strokeRect(610, 410, 332, 500);
+  context.globalAlpha = 1;
+  context.font = "400 42px Georgia, serif";
+  const words = book.title.split(" ");
+  words.forEach((word, index) => context.fillText(word, 642, 486 + index * 52));
+  context.font = "400 19px Georgia, serif";
+  context.fillText("Dev Vyas", 642, 846);
+  context.fillRect(476, 411, 72, 1);
+  context.fillRect(476, 934, 72, 1);
+  context.save();
+  context.translate(526, 452);
+  context.rotate(Math.PI / 2);
+  context.font = "400 31px Georgia, serif";
+  context.fillText(book.title, 0, 0);
+  context.restore();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
   return texture;
 }
 
@@ -517,7 +355,8 @@ function damp(current: number, target: number, speed: number, delta: number) {
 }
 
 const BOOK_ENTER_DURATION = 520;
-const BOOK_EXIT_DURATION = 400;
+const BOOK_CLOSE_DURATION = 620;
+const BOOK_EXIT_DURATION = 1180;
 const PAGE_CANVAS = { width: 1024, height: 1480 };
 
 type PageLinkHit = {
@@ -790,36 +629,44 @@ function Book({
   index,
   hovered,
   selected,
+  hidden,
   reducedMotion,
   cameraX,
   orbit,
-  brand,
   pageIndex,
   fontsReady,
   onHover,
   onSelect,
   onTurnPage,
+  onRest,
+  onTurnComplete,
 }: {
   book: BookLayout;
   index: number;
   hovered: boolean;
   selected: boolean;
+  hidden: boolean;
   reducedMotion: boolean;
   cameraX: React.MutableRefObject<number>;
   orbit: React.MutableRefObject<{ yaw: number; pitch: number }>;
-  brand: string;
   pageIndex: number;
   fontsReady: boolean;
   onHover: (index: number | null) => void;
   onSelect: (index: number) => void;
   onTurnPage: (index: number, delta: number) => void;
+  onRest: () => void;
+  onTurnComplete: () => void;
 }) {
   const camera = useThree((state) => state.camera);
+  const hardcover = useLoader(GLTFLoader, import.meta.env.BASE_URL + "assets/models/hardcover.glb");
+  const [diffuse, normal] = useLoader(THREE.TextureLoader, [
+    import.meta.env.BASE_URL + "assets/models/book-hardcover-diffuse.jpg",
+    import.meta.env.BASE_URL + "assets/models/book-hardcover-normal.jpg",
+  ]);
   const group = useRef<THREE.Group>(null);
   const closedRef = useRef<THREE.Mesh>(null);
   const openRig = useRef<THREE.Group>(null);
   const coverHinge = useRef<THREE.Group>(null);
-  const coverOutside = useRef<THREE.Mesh>(null);
   const flipHinge = useRef<THREE.Group>(null);
   const openT = useRef(0);
   const flipT = useRef(0);
@@ -827,6 +674,10 @@ function Book({
   const [shown, setShown] = useState(0);
   const [flip, setFlip] = useState<{ from: number; to: number; dir: 1 | -1 } | null>(null);
   const hasPages = (book.pages?.length ?? 0) > 0;
+  const pageW = book.depth * 0.96;
+  const pageH = book.bookHeight * 0.96;
+  const pageGeometry = useMemo(() => paperGeometry(pageW, pageH), [pageW, pageH]);
+  const turnGeometry = useMemo(() => paperGeometry(pageW, pageH), [pageW, pageH]);
   const focusFlight = useRef<{
     startedAt: number;
     position: THREE.Vector3;
@@ -838,29 +689,26 @@ function Book({
     position: THREE.Vector3;
     rotation: THREE.Euler;
     scale: number;
+    openness: number;
   } | null>(null);
   const selectedAt = useRef(0);
   const wasSelected = useRef(false);
   const textures = useMemo(
     () => ({
-      cover: coverTexture(book, brand, "cover"),
-      spine: coverTexture(book, brand, "spine"),
+      atlas: hardcoverTexture(book, diffuse.image),
+      cover: coverTexture(book, diffuse.image),
       paper: paperTexture(book),
+      endpaper: endpaperTexture(),
     }),
-    [book, brand],
+    [book, diffuse],
   );
 
-  const geometry = useMemo(
-    () =>
-      new RoundedBoxGeometry(
-        book.width,
-        book.bookHeight,
-        book.depth,
-        2,
-        Math.min(book.width, 0.09),
-      ),
-    [book.bookHeight, book.depth, book.width],
-  );
+  const geometry = useMemo(() => {
+    const mesh = hardcover.scene.getObjectByName("hardcover") as THREE.Mesh;
+    const geometry = mesh.geometry.clone();
+    geometry.scale(book.width, book.bookHeight, book.depth);
+    return geometry;
+  }, [hardcover, book.bookHeight, book.depth, book.width]);
 
   const paints = useMemo(() => {
     if (!hasPages || typeof document === "undefined") return [];
@@ -874,8 +722,10 @@ function Book({
     return () => {
       Object.values(textures).forEach((texture) => texture?.dispose());
       geometry.dispose();
+      pageGeometry.dispose();
+      turnGeometry.dispose();
     };
-  }, [geometry, textures]);
+  }, [geometry, textures, pageGeometry, turnGeometry]);
 
   useEffect(() => {
     if (openRig.current) openRig.current.visible = false;
@@ -886,7 +736,6 @@ function Book({
 
   useEffect(() => {
     if (!selected) {
-      setShown(0);
       setFlip(null);
       flipDone.current = false;
       return;
@@ -904,6 +753,8 @@ function Book({
   useEffect(() => {
     const node = group.current;
     if (selected && node) {
+      setShown(pageIndex);
+      setFlip(null);
       selectedAt.current = performance.now();
       focusFlight.current = {
         startedAt: selectedAt.current,
@@ -918,6 +769,7 @@ function Book({
         position: node.position.clone(),
         rotation: node.rotation.clone(),
         scale: node.scale.x,
+        openness: openT.current,
       };
       focusFlight.current = null;
     } else {
@@ -932,21 +784,21 @@ function Book({
     const motion = reducedMotion ? 1000 : selected ? 7 : 11;
     const perspective = camera as THREE.PerspectiveCamera;
     const portrait = perspective.aspect < 0.9;
-    const openShift = hasPages ? book.depth * (portrait ? 0 : 0.05) : 0;
+    const openShift = 0;
     const targetX = selected ? cameraX.current + openShift : book.x;
-    const targetY = selected ? 1.86 : book.bookHeight / 2 + (hovered ? 0.25 : 0);
     const targetZ = selected ? (portrait ? 2.7 : 3.45) : hovered ? 0.22 : 0;
+    const targetY = selected ? 1.88 + targetZ * 0.17 : book.bookHeight / 2 + (hovered ? 0.25 : 0);
     const distance = Math.max(0.8, perspective.position.z - targetZ);
     const visibleHeight =
       2 * Math.tan((((perspective.fov || 35) * Math.PI) / 180) / 2) * distance;
     const visibleWidth = visibleHeight * Math.max(perspective.aspect, 0.2);
-    const footprint = portrait ? book.depth * 1.35 : book.depth * 2.45;
+    const footprint = portrait ? book.depth * 1.05 : book.depth * 2.05;
     const fit = Math.min(
-      (visibleHeight * 0.62) / book.bookHeight,
-      (visibleWidth * 0.7) / footprint,
+      (visibleHeight * 0.76) / book.bookHeight,
+      (visibleWidth * 0.86) / footprint,
     );
-    const targetScale = selected ? THREE.MathUtils.clamp(fit, 0.35, 1.15) : 1;
-    const targetRotationY = selected ? -Math.PI / 2 + 0.22 + orbit.current.yaw : 0;
+    const targetScale = selected ? Math.max(0.2, fit) : 1;
+    const targetRotationY = selected ? -Math.PI / 2 + 0.05 + orbit.current.yaw : -1.05;
     const targetRotationX = selected ? -0.12 + orbit.current.pitch : 0;
 
     const flight = selected ? focusFlight.current : null;
@@ -999,10 +851,11 @@ function Book({
             1,
             (performance.now() - exit.startedAt) / BOOK_EXIT_DURATION,
           );
-      const alignProgress = easeSmoothOut(progress);
-      const slotProgress = easeSmoothOut(
-        THREE.MathUtils.clamp((progress - 0.3) / 0.7, 0, 1),
+      const travel = THREE.MathUtils.clamp(
+        (progress * BOOK_EXIT_DURATION - BOOK_CLOSE_DURATION) / (BOOK_EXIT_DURATION - BOOK_CLOSE_DURATION), 0, 1,
       );
+      const alignProgress = easeInOutCubic(travel);
+      const slotProgress = alignProgress;
       node.position.set(
         THREE.MathUtils.lerp(exit.position.x, book.x, alignProgress),
         THREE.MathUtils.lerp(
@@ -1019,7 +872,7 @@ function Book({
       );
       node.rotation.y = THREE.MathUtils.lerp(
         exit.rotation.y,
-        0,
+        -1.05,
         alignProgress,
       );
       node.rotation.z = THREE.MathUtils.lerp(
@@ -1029,7 +882,12 @@ function Book({
       );
       const scale = THREE.MathUtils.lerp(exit.scale, 1, alignProgress);
       node.scale.setScalar(scale);
-      if (progress >= 1) exitFlight.current = null;
+      const closing = THREE.MathUtils.clamp(progress * BOOK_EXIT_DURATION / BOOK_CLOSE_DURATION, 0, 1);
+      openT.current = exit.openness * (1 - easeInOutCubic(closing));
+      if (progress >= 1) {
+        exitFlight.current = null;
+        onRest();
+      }
     } else {
       node.position.x = damp(node.position.x, targetX, motion, delta);
       node.position.y = damp(node.position.y, targetY, motion, delta);
@@ -1041,25 +899,41 @@ function Book({
     }
 
     const openTarget = selected && hasPages ? 1 : 0;
-    openT.current = damp(openT.current, openTarget, reducedMotion ? 1000 : 3.4, delta);
-    const opened = easeInOutCubic(THREE.MathUtils.clamp((openT.current - 0.16) / 0.84, 0, 1));
-    if (coverHinge.current) coverHinge.current.rotation.y = -0.42 * opened;
-    if (coverOutside.current) coverOutside.current.visible = true;
+    if (!exitFlight.current) openT.current = damp(openT.current, openTarget, reducedMotion ? 1000 : 5, delta);
+    const opened = THREE.MathUtils.clamp(openT.current, 0, 1);
+    if (coverHinge.current) {
+      coverHinge.current.rotation.y = Math.PI * (1 - opened);
+      coverHinge.current.position.x = book.width / 2 - 0.035 - opened * 0.067;
+      coverHinge.current.visible = !portrait || opened < 0.98;
+    }
     if (closedRef.current) {
-      const showClosed = !hasPages || openT.current < 0.3;
+      const showClosed = !hasPages || opened < 0.002;
       closedRef.current.visible = showClosed;
       closedRef.current.raycast = showClosed ? THREE.Mesh.prototype.raycast : () => {};
     }
-    if (openRig.current) openRig.current.visible = hasPages && openT.current >= 0.24;
+    if (openRig.current) {
+      openRig.current.visible = hasPages && opened >= 0.002;
+      openRig.current.position.z = book.depth * 0.5 * (portrait ? 1 : 1 - opened);
+    }
     if (flip && flipHinge.current) {
-      flipT.current = Math.min(1, flipT.current + (reducedMotion ? 1 : delta * 1.65));
+      flipT.current = Math.min(1, flipT.current + (reducedMotion ? 1 : Math.min(delta, 0.05) / 0.85));
       const eased = easeInOutCubic(flipT.current);
-      flipHinge.current.rotation.y = flip.dir === 1 ? -Math.PI * eased : -Math.PI * (1 - eased);
+      const turn = flip.dir === 1 ? eased : 1 - eased;
+      flipHinge.current.rotation.y = -Math.PI * turn;
+      const position = turnGeometry.attributes.position;
+      const bend = Math.cos(turn * Math.PI) * 0.014 + Math.sin(turn * Math.PI) * 0.14;
+      for (let vertex = 0; vertex < position.count; vertex += 1) {
+        const u = (position.getX(vertex) + pageW / 2) / pageW;
+        position.setZ(vertex, Math.sin(u * Math.PI) * pageW * bend);
+      }
+      position.needsUpdate = true;
+      turnGeometry.computeVertexNormals();
       if (flipT.current >= 1 && !flipDone.current) {
         flipDone.current = true;
         const destination = flip.to;
         setShown(destination);
         setFlip(null);
+        onTurnComplete();
       }
     }
   });
@@ -1073,8 +947,6 @@ function Book({
   const flipIndex = flip ? (flip.dir === 1 ? flip.from : flip.to) : shown;
   const basePaint = paints[Math.min(baseIndex, Math.max(paints.length - 1, 0))];
   const flipPaint = paints[Math.min(flipIndex, Math.max(paints.length - 1, 0))];
-  const pageW = book.depth * 0.9;
-  const pageH = book.bookHeight * 0.9;
 
   const onPageClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
@@ -1093,6 +965,14 @@ function Book({
     onTurnPage(index, u < 0.14 ? -1 : 1);
   };
 
+  if (hidden) return null;
+
+  const raycastOpen: THREE.Mesh["raycast"] = function (raycaster, intersections) {
+    if (openRig.current?.visible && this.parent?.visible) {
+      THREE.Mesh.prototype.raycast.call(this, raycaster, intersections);
+    }
+  };
+
   return (
     <group
       ref={group}
@@ -1108,143 +988,66 @@ function Book({
       }}
       onClick={select}
     >
-      <mesh ref={closedRef} name="closed-book" geometry={geometry} renderOrder={selected ? 20 : 0}>
-        <meshStandardMaterial
-          attach="material-0"
-          map={textures.cover ?? undefined}
-          color={textures.cover ? "#ffffff" : book.color}
-          roughness={0.8}
-          metalness={0.015}
-          bumpMap={textures.cover ?? undefined}
-          bumpScale={0.007}
-          depthTest={!selected}
-          depthWrite={!selected}
-        />
-        <meshStandardMaterial
-          attach="material-1"
-          color={book.color}
-          roughness={0.84}
-          bumpMap={textures.cover ?? undefined}
-          bumpScale={0.006}
-          depthTest={!selected}
-          depthWrite={!selected}
-        />
-        <meshStandardMaterial
-          attach="material-2"
-          map={textures.paper ?? undefined}
-          color={textures.paper ? "#f1eadc" : "#e9e4d8"}
-          roughness={0.93}
-          bumpMap={textures.paper ?? undefined}
-          bumpScale={0.008}
-          depthTest={!selected}
-          depthWrite={!selected}
-        />
-        <meshStandardMaterial
-          attach="material-3"
-          map={textures.paper ?? undefined}
-          color={textures.paper ? "#ece3d3" : "#ddd7ca"}
-          roughness={0.96}
-          bumpMap={textures.paper ?? undefined}
-          bumpScale={0.006}
-          depthTest={!selected}
-          depthWrite={!selected}
-        />
-        <meshStandardMaterial
-          attach="material-4"
-          map={textures.spine ?? undefined}
-          color={textures.spine ? "#ffffff" : book.color}
-          roughness={0.8}
-          metalness={0.015}
-          bumpMap={textures.spine ?? undefined}
-          bumpScale={0.007}
-          depthTest={!selected}
-          depthWrite={!selected}
-        />
-        <meshStandardMaterial
-          attach="material-5"
-          map={textures.paper ?? undefined}
-          color={textures.paper ? "#f3eadc" : "#e6e0d4"}
-          roughness={0.94}
-          bumpMap={textures.paper ?? undefined}
-          bumpScale={0.007}
+      <mesh ref={closedRef} name="closed-book" geometry={geometry} castShadow receiveShadow renderOrder={selected ? 20 : 0}>
+        <meshPhysicalMaterial
+          map={textures.atlas}
+          normalMap={normal}
+          normalScale={new THREE.Vector2(0.7, 0.7)}
+          roughness={0.7}
+          sheen={0.18}
+          sheenRoughness={0.85}
+          metalness={0.02}
           depthTest={!selected}
           depthWrite={!selected}
         />
       </mesh>
       {hasPages ? (
         <group ref={openRig}>
-          <mesh name="page-block" raycast={() => {}} position={[book.width * 0.02, 0, -pageW * 0.72]}>
-            <boxGeometry
-              args={[
-                Math.max(0.08, book.width * 0.55),
-                pageH * 0.98,
-                pageW * 0.98,
-              ]}
-            />
-            <meshStandardMaterial
-              map={textures.paper ?? undefined}
-              color="#f3ecdf"
-              roughness={0.96}
-            />
+          <mesh position={[-book.width / 2 + 0.035, 0, -book.depth / 2]} raycast={() => {}}>
+            <boxGeometry args={[0.07, book.bookHeight, pageW * 1.035]} />
+            <meshStandardMaterial color={book.color} roughness={0.8} />
+          </mesh>
+          <mesh name="page-block" raycast={() => {}} position={[0, 0, -pageW / 2]}>
+            <boxGeometry args={[book.width - 0.14, pageH, pageW]} />
+            <meshStandardMaterial map={textures.paper ?? undefined} color="#f3ecdf" roughness={0.96} />
           </mesh>
           {basePaint ? (
-            <mesh
-              position={[book.width / 2 - 0.02, 0, -pageW * 0.72]}
-              rotation={[0, Math.PI / 2, 0]}
-              name="page-face"
-              renderOrder={30}
-              onClick={onPageClick}
-            >
-              <planeGeometry args={[pageW, pageH]} />
+            <mesh position={[book.width / 2 - 0.065, 0, -pageW / 2]} rotation={[0, Math.PI / 2, 0]}
+              name="page-face" geometry={pageGeometry} renderOrder={30} raycast={raycastOpen} onClick={onPageClick}>
               <meshBasicMaterial map={basePaint.texture} toneMapped={false} />
             </mesh>
           ) : null}
           {flip && flipPaint ? (
-            <group
-              ref={flipHinge}
-              position={[book.width / 2 - 0.01, 0, -pageW * 0.72 + pageW / 2]}
-              rotation={[0, flip.dir === -1 ? -Math.PI : 0, 0]}
-            >
-              <mesh position={[0.01, 0, -pageW / 2]} rotation={[0, Math.PI / 2, 0]} renderOrder={32}>
-                <planeGeometry args={[pageW, pageH]} />
+            <group ref={flipHinge} position={[book.width / 2 - 0.045, 0, 0]}
+              rotation={[0, flip.dir === -1 ? -Math.PI : 0, 0]}>
+              <mesh position={[0.01, 0, -pageW / 2]} rotation={[0, Math.PI / 2, 0]} geometry={turnGeometry} renderOrder={36}>
                 <meshBasicMaterial map={flipPaint.texture} toneMapped={false} />
               </mesh>
-              <mesh position={[-0.01, 0, -pageW / 2]} rotation={[0, -Math.PI / 2, 0]} renderOrder={32}>
-                <planeGeometry args={[pageW, pageH]} />
-                <meshBasicMaterial color="#f3eadc" toneMapped={false} />
+              <mesh position={[0.01, 0, -pageW / 2]} rotation={[0, Math.PI / 2, 0]} geometry={turnGeometry} renderOrder={36}>
+                <meshBasicMaterial map={textures.endpaper} side={THREE.BackSide} toneMapped={false} />
               </mesh>
             </group>
           ) : null}
-          <mesh position={[book.width / 2 - 0.07, 0, pageW / 2 + 0.02]} raycast={() => {}}>
-            <boxGeometry args={[0.1, pageH * 1.02, 0.07]} />
-            <meshStandardMaterial color={book.color} roughness={0.8} />
-          </mesh>
-          <mesh position={[book.width / 2 - 0.09, 0, -pageW / 2 - 0.015]} raycast={() => {}}>
-            <boxGeometry args={[0.16, pageH * 0.98, 0.05]} />
-            <meshStandardMaterial color="#efe6d4" roughness={0.95} />
-          </mesh>
-          <group ref={coverHinge} position={[book.width / 2 - 0.02, 0, 0.04]}>
-            <mesh
-              ref={coverOutside}
-              position={[-0.02, 0, pageW * 0.62]}
-              renderOrder={34}
+          <group ref={coverHinge} position={[book.width / 2 - 0.035, 0, 0]}>
+            <mesh position={[0, 0, book.depth / 2]} renderOrder={34} raycast={raycastOpen}
               onClick={(event) => {
                 event.stopPropagation();
                 if (openT.current > 0.72 && !flip) onTurnPage(index, -1);
-              }}
-            >
-              <boxGeometry args={[0.09, book.bookHeight, pageW]} />
-              <meshStandardMaterial
-                attach="material-0"
-                map={textures.cover ?? undefined}
-                color={textures.cover ? "#ffffff" : book.color}
-                roughness={0.78}
-              />
-              <meshStandardMaterial attach="material-1" color="#f4efe4" roughness={0.95} />
-              <meshStandardMaterial attach="material-2" color={book.color} roughness={0.84} />
-              <meshStandardMaterial attach="material-3" color={book.color} roughness={0.84} />
-              <meshStandardMaterial attach="material-4" color={book.color} roughness={0.84} />
-              <meshStandardMaterial attach="material-5" color={book.color} roughness={0.84} />
+              }}>
+              <boxGeometry args={[0.07, book.bookHeight, book.depth]} />
+              <meshBasicMaterial attach="material-0" color="#e5dbc8" toneMapped={false} />
+              <meshStandardMaterial attach="material-1" map={textures.cover ?? undefined} roughness={0.8} />
+              <meshStandardMaterial attach="material-2" color={book.color} roughness={0.8} />
+              <meshStandardMaterial attach="material-3" color={book.color} roughness={0.8} />
+              <meshStandardMaterial attach="material-4" color={book.color} roughness={0.8} />
+              <meshStandardMaterial attach="material-5" color={book.color} roughness={0.8} />
+            </mesh>
+            <mesh position={[0.037, 0, pageW / 2]} rotation={[0, Math.PI / 2, 0]} geometry={pageGeometry} renderOrder={35} raycast={raycastOpen}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (selected && openT.current > 0.72 && !flip) onTurnPage(index, -1);
+              }}>
+              <meshBasicMaterial map={textures.endpaper} toneMapped={false} />
             </mesh>
           </group>
         </group>
@@ -1253,9 +1056,12 @@ function Book({
   );
 }
 
-function CameraRig({ target }: { target: React.MutableRefObject<number> }) {
+function CameraRig({ target, span }: { target: React.MutableRefObject<number>; span: number }) {
   const { camera } = useThree();
   useFrame((_, delta) => {
+    const perspective = camera as THREE.PerspectiveCamera;
+    camera.position.z = Math.max(10, span / (2 * Math.tan(35 * Math.PI / 360) * perspective.aspect * 0.84));
+    camera.position.y = 1.88 + camera.position.z * 0.17;
     camera.position.x = damp(camera.position.x, target.current, 8, delta);
     camera.lookAt(camera.position.x, 1.88, 0);
   });
@@ -1266,35 +1072,46 @@ function Scene({
   books,
   hoveredIndex,
   selectedIndex,
+  closingIndex,
   reducedMotion,
   cameraX,
   orbit,
-  brand,
   pageIndex,
   fontsReady,
   onHover,
   onSelect,
   onTurnPage,
+  onRest,
+  onTurnComplete,
 }: {
   books: BookLayout[];
   hoveredIndex: number | null;
   selectedIndex: number | null;
+  closingIndex: number | null;
   reducedMotion: boolean;
   cameraX: React.MutableRefObject<number>;
   orbit: React.MutableRefObject<{ yaw: number; pitch: number }>;
-  brand: string;
   pageIndex: number;
   fontsReady: boolean;
   onHover: (index: number | null) => void;
   onSelect: (index: number) => void;
   onTurnPage: (index: number, delta: number) => void;
+  onRest: () => void;
+  onTurnComplete: () => void;
 }) {
   return (
     <>
-      <CameraRig target={cameraX} />
-      <ambientLight intensity={1.5} />
-      <hemisphereLight args={["#ffffff", "#d7dce8", 1.2]} />
-      <directionalLight position={[5, 8, 7]} intensity={2.2} />
+      <CameraRig target={cameraX} span={(books.at(-1)?.x ?? 0) + 1.6} />
+      <ambientLight intensity={0.6} />
+      <hemisphereLight args={["#fff5e5", "#84715c", 1.3]} />
+      <directionalLight position={[5, 3, 5]} color="#fff8ed" intensity={1.4} />
+      <directionalLight position={[-3, 7, 5]} color="#fff2df" intensity={3} castShadow
+        shadow-mapSize={[2048, 2048]} shadow-camera-left={-8} shadow-camera-right={8}
+        shadow-camera-top={8} shadow-camera-bottom={-8} shadow-normalBias={0.025} shadow-radius={5} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.015, 0]} receiveShadow>
+        <planeGeometry args={[200, 200]} />
+        <shadowMaterial color="#211a14" opacity={0.16} />
+      </mesh>
 
       {books.map((book, index) => (
         <Book
@@ -1303,15 +1120,17 @@ function Scene({
           index={index}
           hovered={hoveredIndex === index && selectedIndex === null}
           selected={selectedIndex === index}
+          hidden={(selectedIndex ?? closingIndex) !== null && (selectedIndex ?? closingIndex) !== index}
           reducedMotion={reducedMotion}
           cameraX={cameraX}
           orbit={orbit}
-          brand={brand}
-          pageIndex={selectedIndex === index ? pageIndex : 0}
+          pageIndex={selectedIndex === index || closingIndex === index ? pageIndex : 0}
           fontsReady={fontsReady}
           onHover={onHover}
           onSelect={onSelect}
           onTurnPage={onTurnPage}
+          onRest={onRest}
+          onTurnComplete={onTurnComplete}
         />
       ))}
     </>
@@ -1335,7 +1154,6 @@ export function NewsletterBookshelf({
   items = defaultNewsletterBooks,
   className,
   height = 620,
-  brand = "The Brief",
   onSelect,
   onClose,
 }: NewsletterBookshelfProps) {
@@ -1345,6 +1163,7 @@ export function NewsletterBookshelf({
   );
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [closingIndex, setClosingIndex] = useState<number | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [fontsReady, setFontsReady] = useState(false);
@@ -1363,6 +1182,8 @@ export function NewsletterBookshelf({
   const switchTimer = useRef<number | null>(null);
   const pendingSelection = useRef<number | null>(null);
   const suppressClick = useRef(false);
+  const pageTurning = useRef(false);
+  const closeAfterTurn = useRef(false);
 
   const getBounds = useCallback(() => {
     const last = books.at(-1)?.x ?? 0;
@@ -1423,6 +1244,7 @@ export function NewsletterBookshelf({
 
   const presentBook = useCallback(
     (index: number) => {
+      setClosingIndex(null);
       moveCamera(books[index]!.x);
       orbit.current = { yaw: 0, pitch: 0 };
       setHoveredIndex(null);
@@ -1450,7 +1272,7 @@ export function NewsletterBookshelf({
 
   const selectBook = useCallback(
     (index: number) => {
-      if (suppressClick.current) return;
+      if (suppressClick.current || closingIndex !== null) return;
       if (selectedIndex === index) {
         if (!(books[index]?.pages?.length)) openBook(index);
         return;
@@ -1460,6 +1282,7 @@ export function NewsletterBookshelf({
         pendingSelection.current = index;
         moveCamera(books[index]!.x);
         setHoveredIndex(null);
+        setClosingIndex(selectedIndex);
         setSelectedIndex(null);
         orbit.current = { yaw: 0, pitch: 0 };
         if (switchTimer.current !== null) window.clearTimeout(switchTimer.current);
@@ -1479,25 +1302,43 @@ export function NewsletterBookshelf({
 
       presentBook(index);
     },
-    [books, moveCamera, openBook, presentBook, reducedMotion, selectedIndex],
+    [books, closingIndex, moveCamera, openBook, presentBook, reducedMotion, selectedIndex],
   );
 
   const close = useCallback(() => {
+    if (pageTurning.current) {
+      closeAfterTurn.current = true;
+      return;
+    }
+    setClosingIndex(selectedIndex);
     setSelectedIndex(null);
-    setPageIndex(0);
+    setHoveredIndex(null);
     orbit.current = { yaw: 0, pitch: 0 };
     onClose?.();
     stageRef.current?.focus({ preventScroll: true });
-  }, [onClose]);
+  }, [onClose, selectedIndex]);
+
+  const finishClosing = useCallback(() => setClosingIndex(null), []);
+
+  const finishTurn = useCallback(() => {
+    pageTurning.current = false;
+    if (closeAfterTurn.current) {
+      closeAfterTurn.current = false;
+      close();
+    }
+  }, [close]);
 
   const turnPage = useCallback(
     (bookIndex: number, delta: number) => {
-      if (bookIndex !== selectedIndex) return;
+      if (bookIndex !== selectedIndex || pageTurning.current) return;
       const total = books[bookIndex]?.pages?.length ?? 0;
       if (total < 2) return;
-      setPageIndex((current) => THREE.MathUtils.clamp(current + delta, 0, total - 1));
+      const next = THREE.MathUtils.clamp(pageIndex + delta, 0, total - 1);
+      if (next === pageIndex) return;
+      pageTurning.current = true;
+      setPageIndex(next);
     },
-    [books, selectedIndex],
+    [books, pageIndex, selectedIndex],
   );
 
   const switchFocused = useCallback(
@@ -1513,6 +1354,7 @@ export function NewsletterBookshelf({
 
   const pointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest("button, a")) return;
+    stageRef.current?.focus({ preventScroll: true });
     gesture.current = {
       mode: "pending",
       x: event.clientX,
@@ -1555,11 +1397,10 @@ export function NewsletterBookshelf({
 
   const selectedBook = selectedIndex === null ? null : books[selectedIndex];
   const openPage = selectedBook?.pages?.[pageIndex];
-  const bounds = getBounds();
   return (
     <section
       className={cn(
-        "relative isolate w-full overflow-hidden bg-[#fbfbfa] text-[#171717] [--shelf-accent:#4040ff] dark:bg-[#111112] dark:text-[#f5f5f3]",
+        "relative isolate w-full overflow-hidden text-[#302b26] [--shelf-accent:#9b6544]",
         className,
       )}
       style={{ height } as CSSProperties}
@@ -1594,6 +1435,7 @@ export function NewsletterBookshelf({
           }
         }}
         onKeyDown={(event) => {
+          if (closingIndex !== null) return;
           if (event.key === "Escape" && selectedIndex !== null) {
             event.preventDefault();
             close();
@@ -1602,13 +1444,23 @@ export function NewsletterBookshelf({
             if (selectedIndex !== null && (books[selectedIndex]?.pages?.length ?? 0) > 1) {
               turnPage(selectedIndex, 1);
             } else if (selectedIndex !== null) switchFocused(1);
-            else moveCamera(cameraX.current + bounds.visibleSpan * 0.23);
+            else {
+              const next = Math.min(currentIndex + 1, books.length - 1);
+              moveCamera(books[next]!.x);
+              setCurrentIndex(next);
+              setHoveredIndex(next);
+            }
           } else if (event.key === "ArrowLeft") {
             event.preventDefault();
             if (selectedIndex !== null && (books[selectedIndex]?.pages?.length ?? 0) > 1) {
               turnPage(selectedIndex, -1);
             } else if (selectedIndex !== null) switchFocused(-1);
-            else moveCamera(cameraX.current - bounds.visibleSpan * 0.23);
+            else {
+              const next = Math.max(currentIndex - 1, 0);
+              moveCamera(books[next]!.x);
+              setCurrentIndex(next);
+              setHoveredIndex(next);
+            }
           } else if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             if (selectedIndex === null) selectBook(currentIndex);
@@ -1618,6 +1470,7 @@ export function NewsletterBookshelf({
         }}
       >
         <Canvas
+          shadows="variance"
           camera={{ fov: 35, near: 0.1, far: 60, position: [cameraX.current, 2.65, 10] }}
           dpr={[1, 2]}
           gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
@@ -1629,18 +1482,21 @@ export function NewsletterBookshelf({
             books={books}
             hoveredIndex={hoveredIndex}
             selectedIndex={selectedIndex}
+            closingIndex={closingIndex}
             reducedMotion={reducedMotion}
             cameraX={cameraX}
             orbit={orbit}
-            brand={brand}
             pageIndex={pageIndex}
             fontsReady={fontsReady}
             onHover={setHoveredIndex}
             onSelect={selectBook}
             onTurnPage={turnPage}
+            onRest={finishClosing}
+            onTurnComplete={finishTurn}
           />
         </Canvas>
       </div>
+
     </section>
   );
 }

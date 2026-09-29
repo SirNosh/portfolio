@@ -18,20 +18,29 @@
 }
 
 .field-grid {
-  background-image:
-    linear-gradient(rgba(246, 244, 242, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(246, 244, 242, 0.045) 1px, transparent 1px);
-  background-size: 84px 84px;
+  display: none;
 }
 
 .field-wash {
   background:
-    radial-gradient(ellipse 42% 34% at 76% 38%, rgba(255, 75, 75, 0.16), transparent 70%),
-    radial-gradient(ellipse 36% 42% at 8% 82%, rgba(77, 107, 255, 0.1), transparent 72%);
+    radial-gradient(ellipse 60% 55% at 35% 30%, #f8f5ee, transparent 80%),
+    radial-gradient(ellipse 70% 45% at 75% 90%, #c8c0b5, transparent 85%);
 }
 
 .field-drift {
-  background: radial-gradient(circle at 70% 46%, rgba(246, 244, 242, 0.05), transparent 42%);
+  background: radial-gradient(ellipse at 50% 100%, rgba(111, 93, 73, 0.08), transparent 65%);
+}
+
+:root[data-background='dark'] {
+  --bg: #000;
+  --fg: #f3f0ea;
+  --line: rgba(243, 240, 234, 0.28);
+  color-scheme: dark;
+}
+
+:root[data-background='dark'] .field-wash,
+:root[data-background='dark'] .field-drift {
+  display: none;
 }
 
 .spectrum-slot {

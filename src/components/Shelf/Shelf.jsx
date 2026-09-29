@@ -7,7 +7,6 @@ export default function Shelf() {
       <NewsletterBookshelf
         className="shelf-fit"
         height="100%"
-        brand=""
         items={shelfBooks}
       />
     </section>

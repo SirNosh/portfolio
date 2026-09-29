@@ -5,14 +5,14 @@
   --sar: env(safe-area-inset-right, 0px);
   --header-block: calc(var(--sat) + 3.25rem);
   --stage: 28svh;
-  --bg: #252423;
-  --fg: #f6f4f2;
-  --muted: #b7b3ae;
-  --line: rgba(246, 244, 242, 0.16);
-  --red: #ff4b4b;
+  --bg: #e4dfd7;
+  --fg: #302b26;
+  --muted: #7b7267;
+  --line: rgba(61, 50, 39, 0.16);
+  --red: #9b6544;
   --ink: #252423;
   --cream: #f3f0ea;
   --display: "Barlow", "Avenir Next", "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
-  color-scheme: dark;
+  color-scheme: light;
 }

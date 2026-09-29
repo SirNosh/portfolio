@@ -142,6 +142,7 @@ export default function Engine() {
     let frame = 0
     let disposed = false
     let progress = 0
+    let shelfPan = 0
     let distance = 5.4
     const startRotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.22, 0))
     // Roll around the viewing axis: the front opening edge stays toward the
@@ -153,7 +154,9 @@ export default function Engine() {
     const reel = document.getElementById('between')
     const shelf = document.getElementById('shelf')
     const onScroll = () => {
-      progress = THREE.MathUtils.clamp(window.scrollY / Math.max(1, reel.offsetHeight - window.innerHeight), 0, 1)
+      const travel = window.scrollY / Math.max(1, (reel.offsetHeight - window.innerHeight) / 1.2)
+      progress = THREE.MathUtils.clamp(travel, 0, 1)
+      shelfPan = smooth((travel - 0.72) / 0.48)
     }
     const layout = () => {
       const width = el.clientWidth
@@ -188,8 +191,8 @@ export default function Engine() {
       const rise = 64 * pan * (2 - pan)
       const arcTilt = Math.atan2(112 * el.clientWidth, 128 * (1 - pan) * el.clientHeight) * pan
       el.style.transform = `translate3d(${pan * 112}%, ${-rise}%, 0) rotate(${arcTilt}rad)`
-      shelf.style.setProperty('--shelf-progress', String(pan))
-      shelf.inert = pan < 0.98
+      shelf.style.setProperty('--shelf-progress', String(shelfPan))
+      shelf.inert = shelfPan < 0.98
       rig.anchor.updateWorldMatrix(true, false)
       rig.anchor.matrixWorld.decompose(cssScreen.position, cssScreen.quaternion, cssScreen.scale)
       screenNormal.set(0, 0, 1).applyQuaternion(cssScreen.quaternion)

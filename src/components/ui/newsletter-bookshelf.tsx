@@ -626,6 +626,7 @@ function easeInOutCubic(progress: number) {
 
 function Book({
   book,
+  entranceEndX,
   index,
   hovered,
   selected,
@@ -642,6 +643,7 @@ function Book({
   onTurnComplete,
 }: {
   book: BookLayout;
+  entranceEndX: number;
   index: number;
   hovered: boolean;
   selected: boolean;
@@ -790,8 +792,10 @@ function Book({
       const height = 2 * Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2)) * perspective.position.distanceTo(entranceVector.set(cameraX.current, 1.88, 0));
       const width = height * perspective.aspect;
       const travelX = -1.12 * width * (1 - pan);
+      const settle = THREE.MathUtils.clamp((pan - 0.6) / 0.4, 0, 1);
+      const curveEndX = entranceEndX * (1 - easeInOutCubic(settle));
       // One parabola in shelf coordinates; each book samples its own point and tangent.
-      const curve = Math.max(0, -(book.x + travelX) / (1.12 * width));
+      const curve = Math.max(0, (curveEndX - book.x - travelX) / (1.12 * width));
       const tilt = -Math.atan2(1.28 * height * curve, 1.12 * width);
       camera.getWorldDirection(entranceVector);
       entrance.current.quaternion.setFromAxisAngle(entranceVector, tilt);
@@ -1119,6 +1123,10 @@ function Scene({
   onRest: () => void;
   onTurnComplete: () => void;
 }) {
+  const ground = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    if (ground.current) ground.current.visible = document.querySelector(".engine.has-error") !== null || Number(document.getElementById("shelf")?.style.getPropertyValue("--shelf-progress") || 0) >= 0.98;
+  });
   return (
     <>
       <CameraRig target={cameraX} span={(books.at(-1)?.x ?? 0) + 1.6} />
@@ -1128,7 +1136,7 @@ function Scene({
       <directionalLight position={[-3, 7, 5]} color="#fff2df" intensity={3} castShadow
         shadow-mapSize={[2048, 2048]} shadow-camera-left={-8} shadow-camera-right={8}
         shadow-camera-top={8} shadow-camera-bottom={-8} shadow-normalBias={0.025} shadow-radius={5} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.015, 0]} receiveShadow>
+      <mesh ref={ground} visible={false} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.015, 0]} receiveShadow>
         <planeGeometry args={[200, 200]} />
         <shadowMaterial color="#211a14" opacity={0.16} />
       </mesh>
@@ -1137,6 +1145,7 @@ function Scene({
         <Book
           key={book.id}
           book={book}
+          entranceEndX={books.at(-1)?.x ?? 0}
           index={index}
           hovered={hoveredIndex === index && selectedIndex === null}
           selected={selectedIndex === index}

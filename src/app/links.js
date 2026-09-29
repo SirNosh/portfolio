@@ -1,5 +1,7 @@
 export const links = {
   nosh: 'https://github.com/SirNosh/NOSH',
+  dissect: 'https://github.com/SirNosh/Dissect',
+  gitFixer: 'https://github.com/SirNosh/git-fixer',
   bmad: 'https://github.com/SirNosh/bmad-ml',
   parallax: 'https://github.com/SirNosh/Parallax',
   more: 'https://github.com/SirNosh/MoRE',

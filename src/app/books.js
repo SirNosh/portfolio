@@ -162,6 +162,22 @@ export const shelfBooks = [
         aside: 'Agents can move quickly. Research still has to remain true.',
       },
       {
+        title: 'Dissect',
+        href: links.dissect,
+        workingTitle: 'Understand the code. Understand what changed.',
+        paragraphs: [
+          'An on-demand comprehension layer for a codebase and the changes coding agents make to it. Built on Paseo, Dissect combines agent management with architecture maps, file explanations, and block-level change analysis.',
+        ],
+        layers: [
+          ['Dissect', 'Explore the current codebase and how its parts fit together.'],
+          ['Dissect Diff', 'Understand the changes from the last agent turn.'],
+        ],
+        more: [
+          'Explanations adapt to the concepts and files you already understand, with deeper passes available when you need them.',
+        ],
+        links: [{ href: links.dissect, label: 'Code' }],
+      },
+      {
         title: 'Parallax',
         href: links.parallax,
         workingTitle: 'Planning in the cloud. Acting at the edge. Watching both.',
@@ -198,6 +214,20 @@ export const shelfBooks = [
         ],
         links: [{ href: links.bmad, label: 'Code' }],
         aside: 'Before the operating environment came the contracts.',
+      },
+      {
+        title: 'Git-Fixer',
+        href: links.gitFixer,
+        workingTitle: 'Synthetic Git histories, with configurable patterns.',
+        paragraphs: [
+          'A Python library and CLI for generating local Git repositories with synthetic, backdated commit histories. Built as a learning project, with configurable date ranges, commit frequencies, and daily commit counts.',
+        ],
+        layers: [
+          ['Patterns', 'Uniform, work-hours, or evening and weekend distributions.'],
+          ['Preview', 'Inspect the planned activity graph before generating commits.'],
+          ['Integration', 'Optionally create and push the generated repository to GitHub.'],
+        ],
+        links: [{ href: links.gitFixer, label: 'Code' }],
       },
     ],
   },

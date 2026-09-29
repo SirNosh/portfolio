@@ -8,6 +8,10 @@
   <meta name="description"
     content="Dev Vyas studies what happens between the agents: orchestration, verification, and the systems around long-horizon model calls." />
   <meta name="theme-color" content="#e4dfd7" />
+  <script>
+    document.documentElement.dataset.background = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    document.querySelector('meta[name="theme-color"]').content = document.documentElement.dataset.background === 'dark' ? '#000000' : '#e4dfd7'
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link

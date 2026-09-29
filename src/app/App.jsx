@@ -7,11 +7,12 @@ import Shelf from '../components/Shelf/Shelf'
 
 export default function App() {
   const [booting, setBooting] = useState(true)
-  const [darkBackground, setDarkBackground] = useState(false)
+  const [darkBackground, setDarkBackground] = useState(() => document.documentElement.dataset.background === 'dark')
   const finish = useCallback(() => setBooting(false), [])
 
   useEffect(() => {
     document.documentElement.dataset.background = darkBackground ? 'dark' : 'light'
+    document.querySelector('meta[name="theme-color"]').content = darkBackground ? '#000000' : '#e4dfd7'
   }, [darkBackground])
 
   useEffect(() => {

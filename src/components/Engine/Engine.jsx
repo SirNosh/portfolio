@@ -186,7 +186,8 @@ export default function Engine() {
       camera.position.set(0, targetY + cameraDistance * 0.28 * (1 - turn), cameraDistance)
       camera.lookAt(0, targetY, -0.25 * (1 - turn))
       const rise = 64 * pan * (2 - pan)
-      el.style.transform = `translate3d(${pan * 112}%, ${-rise}%, 0)`
+      const arcTilt = Math.atan2(112 * el.clientWidth, 128 * (1 - pan) * el.clientHeight) * pan
+      el.style.transform = `translate3d(${pan * 112}%, ${-rise}%, 0) rotate(${arcTilt}rad)`
       shelf.style.setProperty('--shelf-x', `${-(1 - pan) * 112}%`)
       shelf.inert = pan < 0.98
       rig.anchor.updateWorldMatrix(true, false)

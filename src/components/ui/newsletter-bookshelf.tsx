@@ -787,18 +787,18 @@ function Book({
     const perspective = camera as THREE.PerspectiveCamera;
     if (entrance.current) {
       const pan = document.querySelector(".engine.has-error") ? 1 : Number(document.getElementById("shelf")?.style.getPropertyValue("--shelf-progress") || 0);
-      const delay = index * 0.045;
-      const progress = THREE.MathUtils.clamp((pan - delay) / (1 - delay), 0, 1);
-      const remaining = 1 - progress;
-      const height = 2 * Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2)) * perspective.position.distanceTo(entranceVector.set(book.x, book.bookHeight / 2, 0));
+      const height = 2 * Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2)) * perspective.position.distanceTo(entranceVector.set(cameraX.current, 1.88, 0));
       const width = height * perspective.aspect;
-      const tilt = -Math.atan2(1.12 * width, 1.28 * progress * height) * Math.sqrt(remaining);
+      const travelX = -1.12 * width * (1 - pan);
+      // One parabola in shelf coordinates; each book samples its own point and tangent.
+      const curve = Math.max(0, -(book.x + travelX) / (1.12 * width));
+      const tilt = -Math.atan2(1.28 * height * curve, 1.12 * width);
       camera.getWorldDirection(entranceVector);
       entrance.current.quaternion.setFromAxisAngle(entranceVector, tilt);
       entranceVector.set(book.x, book.bookHeight / 2, 0).applyQuaternion(entrance.current.quaternion);
       entrance.current.position.set(book.x, book.bookHeight / 2, 0).sub(entranceVector);
-      entrance.current.position.addScaledVector(entranceVector.setFromMatrixColumn(camera.matrixWorld, 0), -1.12 * width * remaining);
-      entrance.current.position.addScaledVector(entranceVector.setFromMatrixColumn(camera.matrixWorld, 1), -0.64 * height * remaining * (1 + progress));
+      entrance.current.position.addScaledVector(entranceVector.setFromMatrixColumn(camera.matrixWorld, 0), travelX);
+      entrance.current.position.addScaledVector(entranceVector.setFromMatrixColumn(camera.matrixWorld, 1), -0.64 * height * curve * curve);
       entrance.current.visible = pan > 0;
     }
     const portrait = perspective.aspect < 0.9;

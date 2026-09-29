@@ -187,9 +187,11 @@ export default function Engine() {
       camera.lookAt(0, targetY, -0.25 * (1 - turn))
       const rise = 64 * pan * (2 - pan)
       const arcTilt = Math.atan2(112 * el.clientWidth, 128 * (1 - pan) * el.clientHeight) * pan
-      el.style.transform = `translate3d(${pan * 112}%, ${-rise}%, 0) rotate(${arcTilt}rad)`
+      el.style.transform = `translate3d(${pan * 112}%, ${rise}%, 0) rotate(${-arcTilt}rad)`
+      const shelfTilt = -Math.atan2(112 * el.clientWidth, 128 * pan * el.clientHeight) * (1 - pan)
       shelf.style.setProperty('--shelf-x', `${-(1 - pan) * 112}%`)
-      shelf.style.setProperty('--shelf-y', `${-64 * (1 - pan) * (1 + pan)}%`)
+      shelf.style.setProperty('--shelf-y', `${64 * (1 - pan) * (1 + pan)}%`)
+      shelf.style.setProperty('--shelf-tilt', `${shelfTilt}rad`)
       shelf.inert = pan < 0.98
       rig.anchor.updateWorldMatrix(true, false)
       rig.anchor.matrixWorld.decompose(cssScreen.position, cssScreen.quaternion, cssScreen.scale)

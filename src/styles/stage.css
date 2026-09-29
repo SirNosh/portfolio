@@ -154,7 +154,7 @@
   z-index: 3;
   height: 100svh;
   min-height: 100svh;
-  transform: translate3d(var(--shelf-x, -112%), 0, 0);
+  transform: translate3d(var(--shelf-x, -112%), var(--shelf-y, -64%), 0);
   will-change: transform;
 }
 

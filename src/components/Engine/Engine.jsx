@@ -192,6 +192,7 @@ export default function Engine() {
       const arcTilt = Math.atan2(112 * el.clientWidth, 128 * (1 - pan) * el.clientHeight) * pan
       el.style.transform = `translate3d(${pan * 112}%, ${-rise}%, 0) rotate(${arcTilt}rad)`
       shelf.style.setProperty('--shelf-progress', String(shelfPan))
+      shelf.style.setProperty('--mac-tilt', String(arcTilt))
       shelf.inert = shelfPan < 0.98
       rig.anchor.updateWorldMatrix(true, false)
       rig.anchor.matrixWorld.decompose(cssScreen.position, cssScreen.quaternion, cssScreen.scale)

@@ -794,15 +794,24 @@ function Book({
       const travelX = -1.12 * width * (1 - pan);
       const settle = THREE.MathUtils.clamp((pan - 0.6) / 0.4, 0, 1);
       const curveEndX = entranceEndX * (1 - easeInOutCubic(settle));
-      // One parabola in shelf coordinates; each book samples its own point and tangent.
+      // Reflection of the MacBook fly-out in Engine.jsx (translate3d(pan*112%, -rise%, 0)
+      // rotate(+arcTilt), rise = 64*pan*(2-pan)): the MacBook exits up-right with +roll,
+      // so the books enter from bottom-left with -roll. Same constants, negated —
+      // X: -1.12W(1-pan) is already -Mac(x); Y and roll below mirror Mac's shape.
       const curve = Math.max(0, (curveEndX - book.x - travelX) / (1.12 * width));
-      const tilt = -Math.atan2(1.28 * height * curve, 1.12 * width);
+      // Mac depth: 0.64*H*m*(2-m) with m = progress. Mirrored with m = (1-pan):
+      // -0.64*H*(1-pan)*(1+pan), generalized per-book via curve (curve = 1-pan for the
+      // leading book). Stays low longer and lands late, like the Mac leaving early.
+      const drop = curve * (1 + pan);
+      // Mac roll: atan2(1.12W, 1.28H*(1-m))*m. Mirrored: negate and run backwards.
+      const tiltCurve = Math.min(curve, 1);
+      const tilt = -Math.atan2(1.12 * width, 1.28 * height * (1 - tiltCurve)) * tiltCurve;
       camera.getWorldDirection(entranceVector);
       entrance.current.quaternion.setFromAxisAngle(entranceVector, tilt);
       entranceVector.set(book.x, book.bookHeight / 2, 0).applyQuaternion(entrance.current.quaternion);
       entrance.current.position.set(book.x, book.bookHeight / 2, 0).sub(entranceVector);
       entrance.current.position.addScaledVector(entranceVector.setFromMatrixColumn(camera.matrixWorld, 0), travelX);
-      entrance.current.position.addScaledVector(entranceVector.setFromMatrixColumn(camera.matrixWorld, 1), -0.64 * height * curve * curve);
+      entrance.current.position.addScaledVector(entranceVector.setFromMatrixColumn(camera.matrixWorld, 1), -0.64 * height * drop);
       entrance.current.visible = pan > 0;
     }
     const portrait = perspective.aspect < 0.9;

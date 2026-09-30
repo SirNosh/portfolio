@@ -794,18 +794,20 @@ function Book({
       const travelX = -1.12 * width * (1 - pan);
       const settle = THREE.MathUtils.clamp((pan - 0.6) / 0.4, 0, 1);
       const curveEndX = entranceEndX * (1 - easeInOutCubic(settle));
-      // Reflection of the MacBook fly-out in Engine.jsx (translate3d(pan*112%, -rise%, 0)
-      // rotate(+arcTilt), rise = 64*pan*(2-pan)): the MacBook exits up-right with +roll,
-      // so the books enter from bottom-left with -roll. Same constants, negated —
-      // X: -1.12W(1-pan) is already -Mac(x); Y and roll below mirror Mac's shape.
+      // Handoff from the MacBook fly-out in Engine.jsx (translate3d(pan*112%, -rise%, 0)
+      // rotate(+arcTilt), rise = 64*pan*(2-pan)): position mirrors the exit (books rise
+      // from bottom-left while the Mac leaves up-right), but roll MATCHES it — books ride
+      // in carrying the laptop's +tilt, then level out for display at the end.
       const curve = Math.max(0, (curveEndX - book.x - travelX) / (1.12 * width));
       // Mac depth: 0.64*H*m*(2-m) with m = progress. Mirrored with m = (1-pan):
       // -0.64*H*(1-pan)*(1+pan), generalized per-book via curve (curve = 1-pan for the
       // leading book). Stays low longer and lands late, like the Mac leaving early.
       const drop = curve * (1 + pan);
-      // Mac roll: atan2(1.12W, 1.28H*(1-m))*m. Mirrored: negate and run backwards.
+      // Mac roll: +atan2(1.12W, 1.28H*(1-m))*m. Same sign, run backwards in time:
+      // +90deg (== laptop's rolled exit pose) at the start of the fly-in, easing to 0
+      // flat for display. Per-book curve staggers it along the shared parabola.
       const tiltCurve = Math.min(curve, 1);
-      const tilt = -Math.atan2(1.12 * width, 1.28 * height * (1 - tiltCurve)) * tiltCurve;
+      const tilt = Math.atan2(1.12 * width, 1.28 * height * (1 - tiltCurve)) * tiltCurve;
       camera.getWorldDirection(entranceVector);
       entrance.current.quaternion.setFromAxisAngle(entranceVector, tilt);
       entranceVector.set(book.x, book.bookHeight / 2, 0).applyQuaternion(entrance.current.quaternion);

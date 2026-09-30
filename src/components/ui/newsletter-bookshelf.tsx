@@ -794,29 +794,29 @@ function Book({
       const travelX = -1.12 * width * (1 - pan);
       const settle = THREE.MathUtils.clamp((pan - 0.6) / 0.4, 0, 1);
       const curveEndX = entranceEndX * (1 - easeInOutCubic(settle));
-      // Handoff from the MacBook fly-out in Engine.jsx: the closed + vertical laptop
-      // (turn = 1, upright PI/2 roll) is the base angle. Whatever extra tilt the Mac
-      // picks up on the way out (--mac-tilt, live arcTilt) is matched onto the books,
+      // Handoff from the MacBook fly-out in Engine.jsx, flipped over the X axis:
+      // books drop in from TOP-left. The closed + vertical laptop (turn = 1,
+      // upright PI/2 roll) is the base angle; whatever extra tilt the Mac picks
+      // up on the way out (--mac-tilt, live arcTilt) is matched onto the books,
       // then everything levels out flat for display as each book lands.
       const curve = Math.max(0, (curveEndX - book.x - travelX) / (1.12 * width));
-      // Mac depth: 0.64*H*m*(2-m) with m = progress. Mirrored with m = (1-pan):
-      // -0.64*H*(1-pan)*(1+pan), generalized per-book via curve (curve = 1-pan for the
-      // leading book). Stays low longer and lands late, like the Mac leaving early.
+      // +0.64*H*curve*(1+pan): starts high, hangs up top early, lands late —
+      // X-flipped mirror of the Mac's rise off the top-right.
       const drop = curve * (1 + pan);
-      // Base = laptop's closed-vertical roll; extra = live Mac fly-out tilt.
-      // (BASE + macTilt) * curve: starts at vertical, carries the Mac's current roll
-      // mid-flight, eases to 0 flat on landing. Per-book curve staggers it.
+      // Flipped over the X axis: books drop in from TOP-left (was bottom-left).
+      // Y offset is +up, roll is negated to mirror the arc. Base is still the
+      // closed-vertical laptop, matched live to --mac-tilt, eased flat on landing.
       const shelfEl = document.getElementById("shelf");
       const macTilt = Number(shelfEl?.style.getPropertyValue("--mac-tilt") || 0);
       const BASE_ROLL = Math.PI / 2;
       const tiltCurve = Math.min(curve, 1);
-      const tilt = (BASE_ROLL + macTilt) * tiltCurve;
+      const tilt = -(BASE_ROLL + macTilt) * tiltCurve;
       camera.getWorldDirection(entranceVector);
       entrance.current.quaternion.setFromAxisAngle(entranceVector, tilt);
       entranceVector.set(book.x, book.bookHeight / 2, 0).applyQuaternion(entrance.current.quaternion);
       entrance.current.position.set(book.x, book.bookHeight / 2, 0).sub(entranceVector);
       entrance.current.position.addScaledVector(entranceVector.setFromMatrixColumn(camera.matrixWorld, 0), travelX);
-      entrance.current.position.addScaledVector(entranceVector.setFromMatrixColumn(camera.matrixWorld, 1), -0.64 * height * drop);
+      entrance.current.position.addScaledVector(entranceVector.setFromMatrixColumn(camera.matrixWorld, 1), 0.64 * height * drop);
       entrance.current.visible = pan > 0;
     }
     const portrait = perspective.aspect < 0.9;

@@ -156,7 +156,7 @@ export default function Engine() {
     const onScroll = () => {
       const travel = window.scrollY / Math.max(1, (reel.offsetHeight - window.innerHeight) / 1.2)
       progress = THREE.MathUtils.clamp(travel, 0, 1)
-      shelfPan = smooth((travel - 0.72) / 0.48)
+      shelfPan = smooth((travel - 0.55) / 0.45)
     }
     const layout = () => {
       const width = el.clientWidth

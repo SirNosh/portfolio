@@ -3,6 +3,7 @@
 /* eslint-disable react/no-unknown-property */
 
 import { cn } from "@/lib/utils";
+import { blendStudio, contactShadowMaterial, contactShadowTexture, createStudioEnvironment, isDarkTheme, watchTheme } from "@/lib/studio";
 import { Canvas, type ThreeEvent, useFrame, useThree, useLoader } from "@react-three/fiber";
 import {
   type CSSProperties,
@@ -634,6 +635,7 @@ function Book({
   reducedMotion,
   cameraX,
   orbit,
+  studioMix,
   pageIndex,
   fontsReady,
   onHover,
@@ -651,6 +653,7 @@ function Book({
   reducedMotion: boolean;
   cameraX: React.MutableRefObject<number>;
   orbit: React.MutableRefObject<{ yaw: number; pitch: number }>;
+  studioMix: React.MutableRefObject<number>;
   pageIndex: number;
   fontsReady: boolean;
   onHover: (index: number | null) => void;
@@ -660,6 +663,8 @@ function Book({
   onTurnComplete: () => void;
 }) {
   const camera = useThree((state) => state.camera);
+  const contact = useRef<THREE.Mesh>(null);
+  const contactMaterial = useMemo(() => contactShadowMaterial(contactShadowTexture()), []);
   const hardcover = useLoader(GLTFLoader, import.meta.env.BASE_URL + "assets/models/hardcover.glb");
   const [diffuse, normal] = useLoader(THREE.TextureLoader, [
     import.meta.env.BASE_URL + "assets/models/book-hardcover-diffuse.jpg",
@@ -731,6 +736,11 @@ function Book({
     };
   }, [geometry, textures, pageGeometry, turnGeometry]);
 
+  useEffect(() => () => {
+    contactMaterial.alphaMap?.dispose();
+    contactMaterial.dispose();
+  }, [contactMaterial]);
+
   useEffect(() => {
     if (openRig.current) openRig.current.visible = false;
     return () => {
@@ -787,6 +797,7 @@ function Book({
     if (!node) return;
     const motion = reducedMotion ? 1000 : selected ? 7 : 11;
     const perspective = camera as THREE.PerspectiveCamera;
+    let landed = 1;
     if (entrance.current) {
       const pan = document.querySelector(".engine.has-error") ? 1 : Number(document.getElementById("shelf")?.style.getPropertyValue("--shelf-progress") || 0);
       const height = 2 * Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2)) * perspective.position.distanceTo(entranceVector.set(cameraX.current, 1.88, 0));
@@ -800,6 +811,7 @@ function Book({
       // up on the way out (--mac-tilt, live arcTilt) is matched onto the books,
       // then everything levels out flat for display as each book lands.
       const curve = Math.max(0, (curveEndX - book.x - travelX) / (1.12 * width));
+      landed = 1 - Math.min(curve, 1);
       // +0.64*H*curve*(1+pan): starts high, hangs up top early, lands late —
       // X-flipped mirror of the Mac's rise off the top-right.
       const drop = curve * (1 + pan);
@@ -933,6 +945,15 @@ function Book({
       const nextScale = damp(node.scale.x, targetScale, motion, delta);
       node.scale.setScalar(nextScale);
     }
+    if (contact.current) {
+      // Occlusion fades in as the book lands, softens on hover lift, and clears when it is picked up.
+      const lift = THREE.MathUtils.clamp(Math.max((node.position.y - book.bookHeight / 2) / 0.6, node.position.z / 1.2), 0, 1);
+      const spread = 1 + lift * 0.5;
+      contactMaterial.opacity = blendStudio(studioMix.current).contact * landed * (1 - lift);
+      contact.current.visible = contactMaterial.opacity > 0.002;
+      contact.current.rotation.y = node.rotation.y;
+      contact.current.scale.set(book.width * 2 * spread, book.depth * 2 * spread, 1);
+    }
 
     const openTarget = selected && hasPages ? 1 : 0;
     if (!exitFlight.current) openT.current = damp(openT.current, openTarget, reducedMotion ? 1000 : 5, delta);
@@ -1010,6 +1031,10 @@ function Book({
   };
 
   return (
+    <>
+    <mesh ref={contact} position={[book.x, 0.003, 0]} rotation={[-Math.PI / 2, -1.05, 0, "YXZ"]} material={contactMaterial} visible={false} raycast={() => {}}>
+      <planeGeometry args={[1, 1]} />
+    </mesh>
     <group ref={entrance} visible={false}>
     <group
       ref={group}
@@ -1091,6 +1116,7 @@ function Book({
       ) : null}
     </group>
     </group>
+    </>
   );
 }
 
@@ -1143,16 +1169,54 @@ function Scene({
   onTurnComplete: () => void;
 }) {
   const ground = useRef<THREE.Mesh>(null);
-  useFrame(() => {
-    if (ground.current) ground.current.visible = document.querySelector(".engine.has-error") !== null || Number(document.getElementById("shelf")?.style.getPropertyValue("--shelf-progress") || 0) >= 0.98;
+  const ambient = useRef<THREE.AmbientLight>(null);
+  const hemisphere = useRef<THREE.HemisphereLight>(null);
+  const fill = useRef<THREE.DirectionalLight>(null);
+  const key = useRef<THREE.DirectionalLight>(null);
+  const rim = useRef<THREE.DirectionalLight>(null);
+  const darkTarget = useRef(isDarkTheme() ? 1 : 0);
+  const studioMix = useRef(darkTarget.current);
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    const environment = createStudioEnvironment(gl);
+    scene.environment = environment.texture;
+    const stopTheme = watchTheme((dark) => {
+      darkTarget.current = dark ? 1 : 0;
+    });
+    return () => {
+      stopTheme();
+      scene.environment = null;
+      environment.dispose();
+    };
+  }, [gl, scene]);
+  useFrame((_, delta) => {
+    studioMix.current = reducedMotion ? darkTarget.current : damp(studioMix.current, darkTarget.current, 8, delta);
+    const studio = blendStudio(studioMix.current);
+    if (ambient.current) ambient.current.intensity = 0.6 * studio.ambient;
+    if (hemisphere.current) hemisphere.current.intensity = 1.3 * studio.ambient;
+    if (fill.current) fill.current.intensity = 1.4 * studio.fill;
+    if (key.current) key.current.intensity = 3 * studio.key;
+    if (rim.current) rim.current.intensity = studio.rim;
+    scene.environmentIntensity = 0.35 * studio.environment;
+    gl.toneMappingExposure = studio.exposure;
+    if (ground.current) {
+      // Fade the cast shadows in over the last of the landing instead of switching them on.
+      const pan = document.querySelector(".engine.has-error") ? 1 : Number(document.getElementById("shelf")?.style.getPropertyValue("--shelf-progress") || 0);
+      const material = ground.current.material as THREE.ShadowMaterial;
+      material.color.copy(studio.shadowColor);
+      material.opacity = 0.16 * studio.shadow * THREE.MathUtils.clamp((pan - 0.85) / 0.15, 0, 1);
+      ground.current.visible = material.opacity > 0;
+    }
   });
   return (
     <>
       <CameraRig target={cameraX} span={(books.at(-1)?.x ?? 0) + 1.6} />
-      <ambientLight intensity={0.6} />
-      <hemisphereLight args={["#fff5e5", "#84715c", 1.3]} />
-      <directionalLight position={[5, 3, 5]} color="#fff8ed" intensity={1.4} />
-      <directionalLight position={[-3, 7, 5]} color="#fff2df" intensity={3} castShadow
+      <ambientLight ref={ambient} intensity={0.6} />
+      <hemisphereLight ref={hemisphere} args={["#fff5e5", "#84715c", 1.3]} />
+      <directionalLight ref={fill} position={[5, 3, 5]} color="#fff8ed" intensity={1.4} />
+      {/* Back rim separates the boards from the dark backdrop. */}
+      <directionalLight ref={rim} position={[-5, 5, -6]} color="#fff6ec" intensity={0} />
+      <directionalLight ref={key} position={[-3, 7, 5]} color="#fff2df" intensity={3} castShadow
         shadow-mapSize={[2048, 2048]} shadow-camera-left={-8} shadow-camera-right={8}
         shadow-camera-top={8} shadow-camera-bottom={-8} shadow-normalBias={0.025} shadow-radius={5} />
       <mesh ref={ground} visible={false} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.015, 0]} receiveShadow>
@@ -1172,6 +1236,7 @@ function Scene({
           reducedMotion={reducedMotion}
           cameraX={cameraX}
           orbit={orbit}
+          studioMix={studioMix}
           pageIndex={selectedIndex === index || closingIndex === index ? pageIndex : 0}
           fontsReady={fontsReady}
           onHover={onHover}

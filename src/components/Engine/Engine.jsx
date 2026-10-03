@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { CSS3DObject, CSS3DRenderer } from 'three/addons/renderers/CSS3DRenderer.js'
 import { contact } from '../../app/siteData'
+import { blendStudio, contactShadowMaterial, contactShadowTexture, createStudioEnvironment, isDarkTheme, watchTheme } from '../../lib/studio'
 
 function smooth(value) {
   const t = THREE.MathUtils.clamp(value, 0, 1)
@@ -109,14 +109,10 @@ export default function Engine() {
     const scene = new THREE.Scene()
     const cssScene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 40)
-    const pmrem = new THREE.PMREMGenerator(renderer)
-    const room = new RoomEnvironment()
-    const environment = pmrem.fromScene(room, 0.04)
+    const environment = createStudioEnvironment(renderer)
     scene.environment = environment.texture
-    scene.environmentIntensity = 0.8
-    room.dispose()
-    pmrem.dispose()
-    scene.add(new THREE.HemisphereLight(0xfff4e6, 0x484139, 1.1))
+    const hemisphere = new THREE.HemisphereLight(0xfff4e6, 0x484139, 1.1)
+    scene.add(hemisphere)
     const key = new THREE.DirectionalLight(0xfff2df, 3)
     key.position.set(-3, 7, 5)
     key.castShadow = true
@@ -127,11 +123,20 @@ export default function Engine() {
     key.shadow.radius = 6
     key.shadow.blurSamples = 12
     scene.add(key)
+    // Back-right rim: separates the dark chassis from the dark backdrop.
+    const rim = new THREE.DirectionalLight(0xfff6ec, 0)
+    rim.position.set(4, 3.5, -5)
+    scene.add(rim)
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.ShadowMaterial({ color: 0x211a14, opacity: 0.14 }))
     ground.rotation.x = -Math.PI / 2
     ground.position.y = -0.015
     ground.receiveShadow = true
     scene.add(ground)
+    // Soft occlusion under the base, where the cast shadow alone looks pasted on.
+    const contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), contactShadowMaterial(contactShadowTexture()))
+    contactShadow.rotation.set(-Math.PI / 2, 0, 0, 'YXZ')
+    contactShadow.position.y = -0.01
+    scene.add(contactShadow)
 
     const screenEl = screenElement()
     const cssScreen = new CSS3DObject(screenEl)
@@ -141,9 +146,13 @@ export default function Engine() {
     let rig
     let frame = 0
     let disposed = false
-    let progress = 0
-    let shelfPan = 0
+    let travel = 0
+    let targetTravel = 0
+    let darkTarget = isDarkTheme() ? 1 : 0
+    let mix = darkTarget
     let distance = 5.4
+    const clock = new THREE.Clock()
+    const stopTheme = watchTheme((dark) => { darkTarget = dark ? 1 : 0 })
     const startRotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.22, 0))
     // Roll around the viewing axis: the front opening edge stays toward the
     // camera while the broad outer lid turns sideways, hiding its logo.
@@ -154,9 +163,7 @@ export default function Engine() {
     const reel = document.getElementById('between')
     const shelf = document.getElementById('shelf')
     const onScroll = () => {
-      const travel = window.scrollY / Math.max(1, (reel.offsetHeight - window.innerHeight) / 1.2)
-      progress = THREE.MathUtils.clamp(travel, 0, 1)
-      shelfPan = smooth((travel - 0.72) / 0.28)
+      targetTravel = window.scrollY / Math.max(1, (reel.offsetHeight - window.innerHeight) / 1.2)
     }
     const layout = () => {
       const width = el.clientWidth
@@ -171,7 +178,14 @@ export default function Engine() {
     }
     const render = () => {
       frame = requestAnimationFrame(render)
+      // Exponential damping can't overshoot, so a long frame just lands closer to the target.
+      const dt = clock.getDelta()
+      // Ease toward the scroll position: a wheel notch arrives as a single 100 px jump.
+      travel = reduce.matches || Math.abs(targetTravel - travel) < 1e-4 ? targetTravel : THREE.MathUtils.damp(travel, targetTravel, 7, dt)
+      mix = reduce.matches ? darkTarget : THREE.MathUtils.damp(mix, darkTarget, 8, dt)
       if (!rig) return
+      const progress = THREE.MathUtils.clamp(travel, 0, 1)
+      const shelfPan = smooth((travel - 0.72) / 0.28)
       const close = smooth((progress - 0.04) / 0.27)
       const zoom = reduce.matches ? 0 : smooth((progress - 0.29) / 0.17)
       const turn = reduce.matches ? 0 : smooth((progress - 0.44) / 0.27)
@@ -188,6 +202,21 @@ export default function Engine() {
       const cameraDistance = Math.max(distance * (1 - zoom * 0.18), fitDistance)
       camera.position.set(0, targetY + cameraDistance * 0.28 * (1 - turn), cameraDistance)
       camera.lookAt(0, targetY, -0.25 * (1 - turn))
+      const studio = blendStudio(mix)
+      hemisphere.intensity = 1.1 * studio.ambient
+      key.intensity = 3 * studio.key
+      rim.intensity = studio.rim
+      scene.environmentIntensity = 0.8 * studio.environment
+      renderer.toneMappingExposure = 1.15 * studio.exposure
+      // Shadows stay on the static backdrop's floor, so fade them as the laptop flies off.
+      const grounded = 1 - smooth(pan / 0.35)
+      ground.material.color.copy(studio.shadowColor)
+      ground.material.opacity = 0.14 * studio.shadow * grounded
+      contactShadow.material.opacity = studio.contact * grounded
+      // Footprint of the base: full width open, the thin edge once rolled upright.
+      const roll = turn * Math.PI / 2
+      contactShadow.scale.set((Math.cos(roll) * 1.45 + Math.sin(roll) * 0.075) * scale * 4, 1.04 * scale * 4, 1)
+      contactShadow.rotation.y = -0.22 * (1 - turn)
       const rise = 64 * pan * (2 - pan)
       const arcTilt = Math.atan2(112 * el.clientWidth, 128 * (1 - pan) * el.clientHeight) * pan
       el.style.transform = `translate3d(${pan * 112}%, ${-rise}%, 0) rotate(${arcTilt}rad)`
@@ -225,6 +254,7 @@ export default function Engine() {
       cancelAnimationFrame(frame)
       window.removeEventListener('scroll', onScroll)
       observer.disconnect()
+      stopTheme()
       shelf.inert = false
       disposeModel(scene)
       environment.dispose()

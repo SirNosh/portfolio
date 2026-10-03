@@ -12,7 +12,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.background = darkBackground ? 'dark' : 'light'
-    document.querySelector('meta[name="theme-color"]').content = darkBackground ? '#000000' : '#e4dfd7'
+    document.querySelector('meta[name="theme-color"]').content = darkBackground ? '#0f0e0d' : '#e4dfd7'
   }, [darkBackground])
 
   useEffect(() => {
@@ -47,9 +47,9 @@ export default function App() {
         </svg>
       </button>
       <div className="field" aria-hidden="true">
-        <div className="field-grid" />
-        <div className="field-wash" />
-        <div className="field-drift" />
+        <div className="field-studio is-light" />
+        <div className="field-studio is-dark" />
+        <div className="field-grain" />
       </div>
       <main id="scroll-root">
         <section id="between" className="reel" aria-label="Introduction" />

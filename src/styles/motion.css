@@ -10,37 +10,61 @@
   overflow: hidden;
 }
 
-.field-grid,
-.field-wash,
-.field-drift {
+.field-studio,
+.field-grain {
   position: absolute;
   inset: 0;
 }
 
-.field-grid {
-  display: none;
+/* Seamless studio sweep: the wall falls off into a floor around the subject's line,
+   lit from the upper left to match the 3D key light at (-3, 7, 5). */
+.field-studio {
+  transition: opacity 400ms ease;
 }
 
-.field-wash {
+.field-studio.is-light {
   background:
-    radial-gradient(ellipse 60% 55% at 35% 30%, #f8f5ee, transparent 80%),
-    radial-gradient(ellipse 70% 45% at 75% 90%, #c8c0b5, transparent 85%);
+    radial-gradient(ellipse 48% 42% at 30% 22%, rgba(255, 253, 248, 0.85), transparent 72%),
+    radial-gradient(ellipse 62% 26% at 50% 64%, rgba(255, 250, 242, 0.5), transparent 76%),
+    radial-gradient(ellipse 115% 88% at 50% 46%, transparent 52%, rgba(86, 72, 56, 0.24)),
+    linear-gradient(180deg, #ebe6de 0%, #e7e1d8 44%, #ded7cc 58%, #d6cdc0 76%, #cfc5b7 100%);
 }
 
-.field-drift {
-  background: radial-gradient(ellipse at 50% 100%, rgba(111, 93, 73, 0.08), transparent 65%);
+.field-studio.is-dark {
+  opacity: 0;
+  background:
+    radial-gradient(ellipse 40% 36% at 50% 40%, rgba(122, 100, 76, 0.3), transparent 72%),
+    radial-gradient(ellipse 58% 22% at 50% 66%, rgba(150, 124, 96, 0.14), transparent 76%),
+    radial-gradient(ellipse 108% 84% at 50% 46%, transparent 42%, rgba(0, 0, 0, 0.78)),
+    linear-gradient(180deg, #121110 0%, #161412 46%, #1b1816 62%, #141210 82%, #0d0c0b 100%);
+}
+
+/* Photographic grain on the backdrop only; the 3D canvases sit above it. */
+.field-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
 }
 
 :root[data-background='dark'] {
-  --bg: #000;
+  --bg: #0f0e0d;
   --fg: #f3f0ea;
   --line: rgba(243, 240, 234, 0.28);
   color-scheme: dark;
 }
 
-:root[data-background='dark'] .field-wash,
-:root[data-background='dark'] .field-drift {
-  display: none;
+:root[data-background='dark'] .field-studio.is-light {
+  opacity: 0;
+}
+
+:root[data-background='dark'] .field-studio.is-dark {
+  opacity: 1;
+}
+
+:root[data-background='dark'] .field-grain {
+  opacity: 0.07;
+  mix-blend-mode: screen;
 }
 
 .spectrum-slot {
@@ -59,20 +83,6 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .field-grid {
-    transform: translate3d(calc(var(--travel, 0) * -7%), calc(var(--travel, 0) * -12%), 0);
-  }
-
-  .field-wash {
-    transform: translate3d(calc(var(--travel, 0) * 5%), calc(var(--travel, 0) * -8%), 0)
-      rotate(calc(var(--travel, 0) * -9deg));
-  }
-
-  .field-drift {
-    transform: translate3d(calc(var(--travel, 0) * -10%), calc(var(--travel, 0) * 6%), 0)
-      rotate(calc(var(--travel, 0) * 14deg));
-  }
-
   .spectrum-slot {
     transform: translate3d(calc(var(--travel, 0) * 22px), calc(var(--travel, 0) * -64px), 0)
       rotate(calc(var(--travel, 0) * -10deg));

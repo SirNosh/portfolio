@@ -212,7 +212,9 @@ export default function Engine() {
       rig = makeLaptop(model)
       scene.add(rig.laptop)
       markReady()
-    }, undefined, fail)
+    }, ({ loaded }) => {
+      window.dispatchEvent(new CustomEvent('portfolio:progress', { detail: Math.min(loaded / import.meta.env.MODEL_BYTES, 1) }))
+    }, fail)
     layout()
     render()
     window.addEventListener('scroll', onScroll, { passive: true })

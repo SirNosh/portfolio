@@ -1094,11 +1094,16 @@ function Book({
   );
 }
 
+// Camera distance that fits the whole shelf span; shared with the pan bounds.
+function shelfDistance(span: number, aspect: number) {
+  return Math.max(10, span / (2 * Math.tan(35 * Math.PI / 360) * aspect * 0.84));
+}
+
 function CameraRig({ target, span }: { target: React.MutableRefObject<number>; span: number }) {
   const { camera } = useThree();
   useFrame((_, delta) => {
     const perspective = camera as THREE.PerspectiveCamera;
-    camera.position.z = Math.max(10, span / (2 * Math.tan(35 * Math.PI / 360) * perspective.aspect * 0.84));
+    camera.position.z = shelfDistance(span, perspective.aspect);
     camera.position.y = 1.88 + camera.position.z * 0.17;
     camera.position.x = damp(camera.position.x, target.current, 8, delta);
     camera.lookAt(camera.position.x, 1.88, 0);
@@ -1211,7 +1216,7 @@ export function NewsletterBookshelf({
   const [reducedMotion, setReducedMotion] = useState(false);
   const [fontsReady, setFontsReady] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
-  const [stageWidth, setStageWidth] = useState(1000);
+  const [stageSize, setStageSize] = useState({ width: 1000, height: 620 });
   const stageRef = useRef<HTMLDivElement>(null);
   const cameraX = useRef(0);
   const orbit = useRef({ yaw: 0, pitch: 0 });
@@ -1230,13 +1235,13 @@ export function NewsletterBookshelf({
 
   const getBounds = useCallback(() => {
     const last = books.at(-1)?.x ?? 0;
-    const aspect = stageWidth / Math.max(420, typeof height === "number" ? height : 620);
-    const visibleSpan = 2 * 10 * Math.tan((35 * Math.PI) / 360) * aspect;
+    const aspect = stageSize.width / Math.max(1, stageSize.height);
+    const visibleSpan = 2 * shelfDistance(last + 1.6, aspect) * Math.tan((35 * Math.PI) / 360) * aspect;
     const inset = visibleSpan * 0.31;
     const min = Math.min(last / 2, (books[0]?.x ?? 0) + inset);
     const max = Math.max(last / 2, last - inset);
     return max <= min ? { min: last / 2, max: last / 2, visibleSpan } : { min, max, visibleSpan };
-  }, [books, height, stageWidth]);
+  }, [books, stageSize]);
 
   const moveCamera = useCallback(
     (next: number) => {
@@ -1261,7 +1266,7 @@ export function NewsletterBookshelf({
     const stage = stageRef.current;
     if (!stage) return () => motion.removeEventListener?.("change", update);
     const resize = new ResizeObserver(([entry]) => {
-      if (entry) setStageWidth(entry.contentRect.width);
+      if (entry) setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height });
     });
     resize.observe(stage);
     return () => {

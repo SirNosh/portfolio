@@ -151,6 +151,7 @@ main {
 }
 
 .loader {
+  --loader-accent: #1f706b;
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -176,12 +177,12 @@ main {
   color: var(--red);
 }
 
-/* Name rises letter by letter from a masked baseline; a copper curtain then sweeps
+/* Name rises letter by letter from a masked baseline; a teal curtain then sweeps
    over and lifts away while the name lands on the laptop screen. */
 .loader-curtain {
   position: absolute;
   inset: 0;
-  background: #9a4f2e;
+  background: var(--loader-accent);
   transform: translateY(100%);
 }
 
@@ -218,7 +219,7 @@ main {
 .loader-dot {
   /* A monospace full stop sits mid-cell; tuck it against the last letter. */
   margin-left: -0.3em;
-  color: var(--red);
+  color: var(--loader-accent);
 }
 
 .loader-meta {

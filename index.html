@@ -9,13 +9,17 @@
     content="Dev Vyas studies what happens between the agents: orchestration, verification, and the systems around long-horizon model calls." />
   <meta name="theme-color" content="#e4dfd7" />
   <script>
-    document.documentElement.dataset.background = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    // A toggled theme persists, so it carries between the site and the writing pages.
+    var theme
+    try { theme = localStorage.getItem('portfolio-theme') } catch (e) {}
+    if (theme !== 'dark' && theme !== 'light') theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    document.documentElement.dataset.background = theme
     document.querySelector('meta[name="theme-color"]').content = document.documentElement.dataset.background === 'dark' ? '#0f0e0d' : '#e4dfd7'
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap"
     rel="stylesheet" />
   <link rel="preload" href="%BASE_URL%assets/fonts/DepartureMono-Regular.woff2" as="font" type="font/woff2" crossorigin />
   <title>Dev Vyas</title>

@@ -1,0 +1,294 @@
+/* Writing pages: a reading column on the site's studio backdrop. Inlined into each post page
+   after tokens.css and motion.css by scripts/writing-plugin.js. */
+:root {
+  --accent: #1f706b;
+}
+
+:root[data-background='dark'] {
+  --accent: #5cb8ae;
+  --muted: #a49b8f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  overflow-x: clip;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-family: var(--mono);
+  font-size: 16.5px;
+  line-height: 1.7;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.post-bar,
+.post {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 74ch);
+  margin: 0 auto;
+  padding-left: max(1.25rem, var(--sal));
+  padding-right: max(1.25rem, var(--sar));
+}
+
+.post-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: calc(var(--sat) + 1.1rem);
+}
+
+.post-home {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.post-home:hover {
+  color: var(--accent);
+}
+
+.post-toggle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.post-toggle:hover {
+  border-color: currentColor;
+}
+
+.post-toggle svg {
+  width: 22px;
+  height: 22px;
+}
+
+:root[data-background='dark'] .icon-moon,
+:root:not([data-background='dark']) .icon-sun {
+  display: none;
+}
+
+.post {
+  padding-top: 3.5rem;
+  padding-bottom: calc(4rem + var(--sab));
+}
+
+.post-body h1,
+.post-body h2,
+.post-body h3 {
+  font-family: var(--display);
+  font-weight: 400;
+  line-height: 1.12;
+  scroll-margin-top: 1.5rem;
+}
+
+.post-body h1 {
+  margin: 0 0 1.1rem;
+  font-size: clamp(2.5rem, 8vw, 4.4rem);
+}
+
+/* The italic line under the title is the deck. */
+.post-body h1 + p {
+  margin: 0 0 2.2rem;
+  font-size: 1.12rem;
+  color: var(--muted);
+}
+
+.post-body h2 {
+  margin: 3.4rem 0 1rem;
+  font-size: clamp(1.7rem, 4.6vw, 2.4rem);
+}
+
+.post-body h3 {
+  margin: 2.4rem 0 0.7rem;
+  font-size: clamp(1.25rem, 3.4vw, 1.5rem);
+}
+
+.post-body p,
+.post-body ul,
+.post-body ol {
+  margin: 0 0 1.15rem;
+}
+
+.post-body ul,
+.post-body ol {
+  padding-left: 1.4rem;
+}
+
+.post-body li {
+  margin: 0.35rem 0;
+}
+
+.post-body strong {
+  font-weight: 600;
+}
+
+.post-body a {
+  color: var(--accent);
+  text-decoration-thickness: 0.07em;
+  text-underline-offset: 0.2em;
+}
+
+.post-body a:hover {
+  text-decoration-thickness: 0.14em;
+}
+
+.post-body hr {
+  margin: 3.2rem 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.post-body blockquote {
+  margin: 1.8rem 0;
+  padding: 0.9rem 1.25rem;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+}
+
+.post-body blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* Figures (drawn at 900px) and tables break out of the text column to their full width when
+   the screen allows, so the figures render at their native label sizes. */
+.table-wrap,
+.figure {
+  position: relative;
+  left: 50%;
+  width: min(900px, calc(100vw - 2.5rem));
+  transform: translateX(-50%);
+}
+
+.table-wrap {
+  margin-top: 1.6rem;
+  margin-bottom: 1.6rem;
+  overflow-x: auto;
+}
+
+.post-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.post-body th,
+.post-body td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.post-body th {
+  font-weight: 600;
+  border-bottom-color: color-mix(in srgb, var(--fg) 45%, transparent);
+}
+
+.post-body code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
+
+.post-body pre {
+  margin: 0 0 1.15rem;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.post-body pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+
+.post-body details {
+  margin: 1.8rem 0;
+  padding: 0 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.post-body summary {
+  padding: 0.75rem 0;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.post-body details[open] summary {
+  margin-bottom: 0.4rem;
+}
+
+.figure {
+  /* Also clears the browser's default 40px side margins on <figure>. */
+  margin: 2.2rem 0;
+}
+
+/* Figures are drawn at 900px with 13-16px labels: below that width they keep a readable size
+   and scroll sideways, and a tap opens the full figure. */
+.figure-scroll {
+  overflow-x: auto;
+  border-radius: 10px;
+}
+
+.figure img {
+  display: block;
+  width: 100%;
+  min-width: 620px;
+  height: auto;
+}
+
+:root[data-background='dark'] .figure .fig-light,
+:root:not([data-background='dark']) .figure .fig-dark {
+  display: none;
+}
+
+.post-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.6rem 1.5rem;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.post-foot a {
+  color: var(--accent);
+}

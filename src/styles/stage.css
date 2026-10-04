@@ -68,7 +68,7 @@
   color: inherit;
   text-decoration: none;
   border-bottom: 1px solid #9c9c88;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: "Fira Code", ui-monospace, monospace;
   letter-spacing: 0.02em;
   pointer-events: auto;
 }
@@ -101,6 +101,7 @@
 
 .site:has(.engine.has-error) .shelf-stage {
   position: relative;
+  height: 100svh;
   transform: none;
 }
 
@@ -149,11 +150,10 @@
 }
 
 .shelf-stage {
+  /* Same box as .engine: both canvases draw from one camera, so they must share an aspect. */
   position: fixed;
   inset: 0;
   z-index: 3;
-  height: 100svh;
-  min-height: 100svh;
 }
 
 .shelf-fit {

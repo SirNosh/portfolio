@@ -33,7 +33,14 @@ export default function App() {
         aria-label="Black background"
         aria-pressed={darkBackground}
         title={darkBackground ? 'Switch to light background' : 'Switch to black background'}
-        onClick={() => setDarkBackground((current) => !current)}
+        onClick={() => {
+          try {
+            localStorage.setItem('portfolio-theme', darkBackground ? 'light' : 'dark')
+          } catch {
+            // Storage blocked: the toggle still works for this page.
+          }
+          setDarkBackground(!darkBackground)
+        }}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
           {darkBackground ? (

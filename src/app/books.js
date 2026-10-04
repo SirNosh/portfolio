@@ -1,4 +1,15 @@
+import { writings } from 'virtual:writings'
 import { links } from './links'
+
+// One page per post in writing/; each links to the post's own page.
+const writingPages = writings.length
+  ? writings.map((post) => ({
+      status: post.dateLabel,
+      title: post.title,
+      paragraphs: [post.summary],
+      links: [{ label: 'Read the post →', href: post.url }],
+    }))
+  : [{ title: 'None as of now :P' }]
 
 export const shelfBooks = [
   {
@@ -7,6 +18,7 @@ export const shelfBooks = [
     date: '',
     color: '#6b4f3a',
     foil: '#f7f3ec',
+    wear: 0.85, // oldest, carried everywhere
     pages: [
       {
         title: 'Safe Guard Products International',
@@ -28,6 +40,7 @@ export const shelfBooks = [
     date: '',
     color: '#7d2e2e',
     foil: '#f7f3ec',
+    wear: 0.6, // well read
     pages: [
       {
         title: 'Clearing the black box between model calls',
@@ -135,6 +148,7 @@ export const shelfBooks = [
     date: '',
     color: '#243056',
     foil: '#f4efe4',
+    wear: 0.38, // used
     pages: [
       {
         title: 'NOSH',
@@ -237,10 +251,7 @@ export const shelfBooks = [
     date: '',
     color: '#1e4a40',
     foil: '#f7f3ec',
-    pages: [
-      {
-        title: 'None as of now :P',
-      },
-    ],
+    wear: 0.12, // nearly new
+    pages: writingPages,
   },
 ]

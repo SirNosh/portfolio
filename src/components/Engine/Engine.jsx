@@ -2,12 +2,20 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { CSS3DObject, CSS3DRenderer } from 'three/addons/renderers/CSS3DRenderer.js'
+import { advance } from '@react-three/fiber'
 import { contact } from '../../app/siteData'
 import { blendStudio, contactShadowMaterial, contactShadowTexture, createStudioEnvironment, isDarkTheme, watchTheme } from '../../lib/studio'
+import { fromShelf, setDriven, stage } from '../../lib/stage'
 
 function smooth(value) {
   const t = THREE.MathUtils.clamp(value, 0, 1)
   return t * t * (3 - 2 * t)
+}
+
+// Zero velocity and acceleration at both ends: the glide starts and settles without a jolt.
+function smoother(value) {
+  const t = THREE.MathUtils.clamp(value, 0, 1)
+  return t * t * t * (t * (t * 6 - 15) + 10)
 }
 
 function markReady() {
@@ -89,7 +97,9 @@ export default function Engine() {
     el.style.opacity = ''
     el.style.visibility = ''
     let renderer
-    const fail = () => { el.classList.add('has-error'); markReady() }
+    let failed = false
+    // Without the laptop, the shelf runs its own loop and camera, as a static page.
+    const fail = () => { failed = true; setDriven(false); el.classList.add('has-error'); markReady() }
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' })
     } catch {
@@ -153,11 +163,13 @@ export default function Engine() {
     let distance = 5.4
     const clock = new THREE.Clock()
     const stopTheme = watchTheme((dark) => { darkTarget = dark ? 1 : 0 })
-    const startRotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.22, 0))
-    // Roll around the viewing axis: the front opening edge stays toward the
-    // camera while the broad outer lid turns sideways, hiding its logo.
-    const uprightRotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, Math.PI / 2))
-    const rotationMatrix = new THREE.Matrix4()
+    const heroPosition = new THREE.Vector3()
+    const heroTarget = new THREE.Vector3()
+    const restPosition = new THREE.Vector3()
+    const restTarget = new THREE.Vector3()
+    const lookAt = new THREE.Vector3()
+    // Last rendered state: the laptop canvas only redraws when something it shows changed.
+    const drawn = { signature: '', dirty: true }
     const screenNormal = new THREE.Vector3()
     const screenToCamera = new THREE.Vector3()
     const reel = document.getElementById('between')
@@ -171,67 +183,92 @@ export default function Engine() {
       camera.aspect = width / Math.max(height, 1)
       distance = Math.max(5.4, 2.9 / (2 * Math.tan(THREE.MathUtils.degToRad(16)) * camera.aspect * 0.78))
       camera.updateProjectionMatrix()
+      drawn.dirty = true
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75))
       renderer.setSize(width, height, false)
       cssRenderer.setSize(width, height)
       onScroll()
     }
-    const render = () => {
+    const render = (now = performance.now()) => {
       frame = requestAnimationFrame(render)
       // Exponential damping can't overshoot, so a long frame just lands closer to the target.
       const dt = clock.getDelta()
       // Ease toward the scroll position: a wheel notch arrives as a single 100 px jump.
       travel = reduce.matches || Math.abs(targetTravel - travel) < 1e-4 ? targetTravel : THREE.MathUtils.damp(travel, targetTravel, 7, dt)
       mix = reduce.matches ? darkTarget : THREE.MathUtils.damp(mix, darkTarget, 8, dt)
-      if (!rig) return
+      if (failed) return
+      direct()
+      // The shelf renders in this same tick from the pose just published (frameloop "never").
+      advance(now / 1000)
+    }
+    // One camera through one studio: the lid closes, then the camera glides across the floor to
+    // the books. Overlapping the close and the glide keeps the move continuous.
+    const direct = () => {
       const progress = THREE.MathUtils.clamp(travel, 0, 1)
-      const shelfPan = smooth((travel - 0.72) / 0.28)
-      const close = smooth((progress - 0.04) / 0.27)
-      const zoom = reduce.matches ? 0 : smooth((progress - 0.29) / 0.17)
-      const turn = reduce.matches ? 0 : smooth((progress - 0.44) / 0.27)
-      const pan = smooth((progress - 0.72) / 0.28)
+      const close = smooth((progress - 0.04) / 0.34)
+      const glide = smoother((progress - 0.3) / 0.66)
+      const look = smoother((progress - 0.3) / 0.58)
+      // No separate push-in: it would carry the laptop up and right just before the glide carries
+      // it left. The glide's own dolly is the only camera travel, so motion never reverses.
+      // The camera only settles low once the lid is low, so the rising-then-folding lid stays in frame.
+      const heroY = THREE.MathUtils.lerp(0.78, -0.28, close * close)
+      const heroX = (rig?.closedCenterX ?? 0) * close
+      heroPosition.set(heroX, heroY + distance * 0.28, distance)
+      heroTarget.set(heroX, heroY, -0.25)
+      if (stage.rest) {
+        fromShelf(stage.rest.position, restPosition)
+        fromShelf(stage.rest.target, restTarget)
+      } else {
+        restPosition.copy(heroPosition)
+        restTarget.copy(heroTarget)
+      }
+      // A gentle crane up and dolly back on the way, so the camera travels through the space.
+      const arc = reduce.matches ? 0 : Math.sin(Math.PI * glide)
+      stage.position.lerpVectors(heroPosition, restPosition, glide)
+      stage.position.y += arc * 0.6
+      stage.position.z += arc * 1.2
+      // The view turns toward the books slightly ahead of the camera's travel.
+      stage.target.lerpVectors(heroTarget, restTarget, look)
+      stage.fov = THREE.MathUtils.lerp(32, stage.rest?.fov ?? 32, glide)
+      stage.owner = glide >= 1 - 1e-4 ? 'shelf' : 'director'
+      const arrived = glide >= 0.98
+      if (shelf.inert === arrived) {
+        shelf.inert = !arrived
+        if (!arrived) window.dispatchEvent(new Event('portfolio:leave-shelf'))
+      }
+      document.documentElement.style.setProperty('--glide', glide.toFixed(4))
+      camera.position.copy(stage.position)
+      camera.lookAt(lookAt.copy(stage.target))
+      if (camera.fov !== stage.fov) {
+        camera.fov = stage.fov
+        camera.updateProjectionMatrix()
+      }
+      if (!rig) return
       rig.hinge.rotation.x = close * 1.92
-      rig.laptop.quaternion.slerpQuaternions(startRotation, uprightRotation, turn)
-      const scale = 1 - turn * 0.18
-      rig.laptop.scale.setScalar(scale)
-      // Keep the closed chassis resting on the surface throughout the quarter turn.
-      const matrix = rotationMatrix.makeRotationFromQuaternion(rig.laptop.quaternion).elements
-      rig.laptop.position.y = (Math.abs(matrix[1]) * 1.45 + Math.abs(matrix[5]) * 0.075 + Math.abs(matrix[9]) * 1.04) * scale
-      const targetY = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.78, -0.28, close), rig.laptop.position.y, turn)
-      const fitDistance = rig.laptop.position.y * 2 / (2 * Math.tan(THREE.MathUtils.degToRad(16)) * 0.82)
-      const cameraDistance = Math.max(distance * (1 - zoom * 0.18), fitDistance)
-      camera.position.set(0, targetY + cameraDistance * 0.28 * (1 - turn), cameraDistance)
-      camera.lookAt(0, targetY, -0.25 * (1 - turn))
       const studio = blendStudio(mix)
       hemisphere.intensity = 1.1 * studio.ambient
       key.intensity = 3 * studio.key
       rim.intensity = studio.rim
       scene.environmentIntensity = 0.8 * studio.environment
       renderer.toneMappingExposure = 1.15 * studio.exposure
-      // Shadows stay on the static backdrop's floor, so fade them as the laptop flies off.
-      const grounded = 1 - smooth(pan / 0.35)
       ground.material.color.copy(studio.shadowColor)
-      ground.material.opacity = 0.14 * studio.shadow * grounded
-      contactShadow.material.opacity = studio.contact * grounded
-      // Footprint of the base: full width open, the thin edge once rolled upright.
-      const roll = turn * Math.PI / 2
-      contactShadow.scale.set((Math.cos(roll) * 1.45 + Math.sin(roll) * 0.075) * scale * 4, 1.04 * scale * 4, 1)
-      contactShadow.rotation.y = -0.22 * (1 - turn)
-      const rise = 64 * pan * (2 - pan)
-      const arcTilt = Math.atan2(112 * el.clientWidth, 128 * (1 - pan) * el.clientHeight) * pan
-      el.style.transform = `translate3d(${pan * 112}%, ${-rise}%, 0) rotate(${arcTilt}rad)`
-      shelf.style.setProperty('--shelf-progress', String(shelfPan))
-      shelf.style.setProperty('--mac-tilt', String(arcTilt))
-      shelf.inert = shelfPan < 0.98
+      ground.material.opacity = 0.14 * studio.shadow
+      contactShadow.material.opacity = studio.contact
+      contactShadow.scale.set(1.45 * 4, 1.04 * 4, 1)
+      contactShadow.rotation.y = -0.22
       rig.anchor.updateWorldMatrix(true, false)
       rig.anchor.matrixWorld.decompose(cssScreen.position, cssScreen.quaternion, cssScreen.scale)
       screenNormal.set(0, 0, 1).applyQuaternion(cssScreen.quaternion)
       screenToCamera.copy(camera.position).sub(cssScreen.position).normalize()
-      cssScreen.visible = screenNormal.dot(screenToCamera) > 0.05 && close < 0.98 && pan < 1
+      cssScreen.visible = screenNormal.dot(screenToCamera) > 0.05 && close < 0.98
       screenEl.style.pointerEvents = cssScreen.visible ? 'auto' : 'none'
       screenEl.setAttribute('aria-hidden', String(!cssScreen.visible))
       screenEl.querySelectorAll('a').forEach((link) => { link.tabIndex = cssScreen.visible ? 0 : -1 })
-      if (pan < 1) {
+      const signature = [...camera.position.toArray(), ...stage.target.toArray(), camera.fov, close, mix]
+        .map((value) => value.toFixed(5)).join()
+      if (drawn.dirty || signature !== drawn.signature) {
+        drawn.signature = signature
+        drawn.dirty = false
         renderer.render(scene, camera)
         cssRenderer.render(cssScene, camera)
       }
@@ -239,7 +276,16 @@ export default function Engine() {
     new GLTFLoader().load(`${import.meta.env.BASE_URL}assets/models/macbook-pro-m5.glb`, ({ scene: model }) => {
       if (disposed) { disposeModel(model); return }
       rig = makeLaptop(model)
+      rig.laptop.quaternion.setFromEuler(new THREE.Euler(0, -0.22, 0))
+      rig.laptop.position.y = 0.075
+      // The yawed model's mass shifts right as the lid folds; the camera follows that centre so
+      // the closed laptop holds still and the glide is the only sideways motion.
+      rig.hinge.rotation.x = 1.92
+      rig.laptop.updateMatrixWorld(true)
+      rig.closedCenterX = new THREE.Box3().setFromObject(rig.laptop).getCenter(new THREE.Vector3()).x
+      rig.hinge.rotation.x = 0
       scene.add(rig.laptop)
+      drawn.dirty = true
       // Compile shaders and draw a frame before the loader lets go: the first frame of this
       // model blocks the main thread, and would otherwise swallow the loader's exit animation.
       renderer.compileAsync(scene, camera).catch(() => {}).finally(() => {

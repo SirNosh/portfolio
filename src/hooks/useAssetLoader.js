@@ -19,8 +19,8 @@ function withTimeout(promise, ms) {
 async function loadFonts() {
   if (!document.fonts?.load) return
   await document.fonts.load('400 72px "Departure Mono"')
-  await document.fonts.load('400 20px "IBM Plex Mono"')
-  await document.fonts.load('500 13px "IBM Plex Mono"')
+  await document.fonts.load('400 20px "Fira Code"')
+  await document.fonts.load('500 13px "Fira Code"')
   await document.fonts.ready
 }
 

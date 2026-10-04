@@ -21,7 +21,7 @@
   --red: #9b6544;
   --ink: #252423;
   --cream: #f3f0ea;
-  --display: "Departure Mono", "IBM Plex Mono", ui-monospace, monospace;
-  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --display: "Departure Mono", "Fira Code", ui-monospace, monospace;
+  --mono: "Fira Code", ui-monospace, monospace;
   color-scheme: light;
 }

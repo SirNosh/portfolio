@@ -9,7 +9,7 @@ A MacBook sits in a photo studio with my name on the screen. As you scroll, the 
 - **Scroll animation.** One scroll value drives the whole sequence: lid, zoom, quarter turn, fly-out and the books' entrance. It's damped every frame (frame-rate independent), so slow scrolling and wheel notches ease in instead of jumping. Reduced motion skips the easing.
 - **Two renderers, one studio.** The laptop is vanilla Three.js with a CSS3D screen (`Engine.jsx`); the shelf is React Three Fiber (`newsletter-bookshelf.tsx`). `src/lib/studio.js` gives both the same procedural softbox environment, light/dark lighting presets and contact shadows.
 - **Light and dark.** The toggle crossfades the CSS studio backdrop and the 3D lighting together. The default follows the system setting.
-- **Loader.** An open book inks its page in step with the 10.8 MB laptop model's download. The model's real size is injected at build time, because Pages serves it gzipped.
+- **Loader.** The name rises letter by letter while a footer rule tracks the 10.8 MB laptop model's download. The model's real size is injected at build time, because Pages serves it gzipped. Once the shaders have compiled, a copper curtain sweeps over and lifts away, and the name flies into the laptop screen.
 
 ## Stack
 

@@ -154,10 +154,10 @@ main {
   position: fixed;
   inset: 0;
   z-index: 20;
+  overflow: hidden;
   background: var(--bg);
   color: var(--fg);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 10vh max(7vw, var(--sar)) calc(10vh + var(--sab)) max(7vw, var(--sal));
@@ -176,98 +176,89 @@ main {
   color: var(--red);
 }
 
-/* An open book: leaves keep turning while the right page inks in with the model download. */
-.loader-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
+/* Name rises letter by letter from a masked baseline; a copper curtain then sweeps
+   over and lifts away while the name lands on the laptop screen. */
+.loader-curtain {
+  position: absolute;
+  inset: 0;
+  background: #9a4f2e;
+  transform: translateY(100%);
 }
 
-.loader-book {
+.loader-name {
   position: relative;
   display: flex;
-  width: min(15rem, 62vw);
-  aspect-ratio: 1.55;
-  perspective: 900px;
-  --edge: color-mix(in srgb, var(--fg) 55%, transparent);
-}
-
-.loader-page,
-.loader-leaf {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  padding: 12% 11%;
-  border: 1px solid var(--edge);
-  background: var(--bg);
-}
-
-.loader-page {
-  flex: 1;
-}
-
-.loader-page.is-left {
-  border-right: 0;
-  border-radius: 7px 0 0 7px;
-  --progress: 1;
-  --ink-color: color-mix(in srgb, var(--fg) 26%, transparent);
-}
-
-.loader-page.is-right {
-  border-radius: 0 7px 7px 0;
-  --ink-color: var(--red);
-}
-
-.loader-page span {
-  --ink: clamp(0, var(--progress, 0) * 7 - var(--line), 1);
-  height: 1.5px;
-  background:
-    linear-gradient(var(--ink-color), var(--ink-color)) 0 0 / calc(var(--ink) * 100%) 100% no-repeat,
-    color-mix(in srgb, var(--fg) 10%, transparent);
-  transition: background-size 260ms ease-out;
-}
-
-.loader-page span:last-child {
-  width: 58%;
-}
-
-.loader-leaf {
-  position: absolute;
-  inset: 0 0 0 50%;
-  border-radius: 0 7px 7px 0;
-  background: color-mix(in srgb, var(--bg) 70%, transparent);
-  transform-origin: left center;
-  opacity: 0;
-  animation: loader-leaf 2.4s cubic-bezier(0.45, 0.05, 0.3, 1) calc(var(--leaf) * 1.2s) infinite both;
-}
-
-@keyframes loader-leaf {
-  0% {
-    transform: rotateY(0deg);
-    opacity: 0;
-  }
-
-  14%,
-  86% {
-    opacity: 1;
-  }
-
-  100% {
-    transform: rotateY(-180deg);
-    opacity: 0;
-  }
-}
-
-.loader-caption {
-  display: flex;
-  gap: 1.2rem;
+  align-items: baseline;
+  gap: 0.24em;
   margin: 0;
+  font-size: clamp(3.2rem, 13vw, 9rem);
+  line-height: 1.12;
+  white-space: nowrap;
+  transform-origin: 0 0;
+}
+
+/* Clip only the bottom edge, so tilted italic glyphs aren't cut at the sides. */
+.loader-word {
+  display: inline-flex;
+  clip-path: inset(-40% -25% 0 -25%);
+}
+
+.loader-word.is-sans {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+}
+
+.loader-word.is-serif {
+  font-family: "Instrument Serif", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.loader-char,
+.loader-dot {
+  display: inline-block;
+  transform: translateY(110%);
+}
+
+.loader-dot {
+  color: var(--red);
+}
+
+.loader-meta {
+  position: absolute;
+  left: max(7vw, var(--sal));
+  right: max(7vw, var(--sar));
+  bottom: calc(6vh + var(--sab));
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.8rem;
   font-family: var(--mono);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
+  opacity: 0;
+}
+
+/* Footer hairline that fills with the model download. */
+.loader-rule {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--line);
+}
+
+.loader-rule::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--fg);
+  transform: scaleX(var(--progress, 0));
+  transform-origin: left center;
+  transition: transform 240ms ease-out;
 }
 
 .loader-count {
@@ -307,7 +298,12 @@ main {
     animation: none;
   }
 
-  .loader-leaf {
-    display: none;
+  .loader-char,
+  .loader-dot {
+    transform: none;
+  }
+
+  .loader-meta {
+    opacity: 1;
   }
 }

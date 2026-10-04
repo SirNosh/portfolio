@@ -240,7 +240,11 @@ export default function Engine() {
       if (disposed) { disposeModel(model); return }
       rig = makeLaptop(model)
       scene.add(rig.laptop)
-      markReady()
+      // Compile shaders and draw a frame before the loader lets go: the first frame of this
+      // model blocks the main thread, and would otherwise swallow the loader's exit animation.
+      renderer.compileAsync(scene, camera).catch(() => {}).finally(() => {
+        requestAnimationFrame(() => requestAnimationFrame(() => { if (!disposed) markReady() }))
+      })
     }, ({ loaded }) => {
       window.dispatchEvent(new CustomEvent('portfolio:progress', { detail: Math.min(loaded / import.meta.env.MODEL_BYTES, 1) }))
     }, fail)

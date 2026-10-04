@@ -1,3 +1,12 @@
+/* Departure Mono by Helena Zhang, SIL OFL 1.1 (license beside the font file). */
+@font-face {
+  font-family: "Departure Mono";
+  src: url("/assets/fonts/DepartureMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
@@ -12,7 +21,7 @@
   --red: #9b6544;
   --ink: #252423;
   --cream: #f3f0ea;
-  --display: "Barlow", "Avenir Next", "Segoe UI", sans-serif;
+  --display: "Departure Mono", "IBM Plex Mono", ui-monospace, monospace;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   color-scheme: light;
 }

@@ -18,7 +18,7 @@ body {
 
 body {
   min-height: 100%;
-  font-family: var(--display);
+  font-family: var(--mono);
   font-weight: 400;
   text-rendering: optimizeLegibility;
 }
@@ -189,7 +189,8 @@ main {
   position: relative;
   display: flex;
   align-items: baseline;
-  gap: 0.24em;
+  /* One monospace cell, like the space in the laptop screen's "Dev Vyas" it lands on. */
+  gap: 1ch;
   margin: 0;
   font-size: clamp(3.2rem, 13vw, 9rem);
   line-height: 1.12;
@@ -203,17 +204,9 @@ main {
   clip-path: inset(-40% -25% 0 -25%);
 }
 
-.loader-word.is-sans {
+.loader-name {
   font-family: var(--display);
-  font-weight: 600;
-  letter-spacing: -0.045em;
-}
-
-.loader-word.is-serif {
-  font-family: "Instrument Serif", Georgia, serif;
-  font-style: italic;
   font-weight: 400;
-  letter-spacing: -0.01em;
 }
 
 .loader-char,
@@ -223,6 +216,8 @@ main {
 }
 
 .loader-dot {
+  /* A monospace full stop sits mid-cell; tuck it against the last letter. */
+  margin-left: -0.3em;
   color: var(--red);
 }
 

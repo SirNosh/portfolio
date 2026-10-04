@@ -58,16 +58,16 @@ export default function Loader({ onFinish }) {
     const el = root.current
     let timeline
     let cancelled = false
-    // Wait for both faces so the letters never rise in a fallback font.
+    // Wait for the face so the letters never rise in a fallback font.
     const fonts = document.fonts
-      ? Promise.all([document.fonts.load('600 64px Barlow'), document.fonts.load('italic 400 64px "Instrument Serif"')])
+      ? document.fonts.load('400 64px "Departure Mono"')
       : Promise.resolve()
     Promise.race([fonts, new Promise((resolve) => { setTimeout(resolve, 1500) })]).then(() => {
       if (cancelled) return
       timeline = createTimeline({ playbackRate: playbackRate(), onComplete: () => setIntroDone(true) })
         .add(el.querySelectorAll('.loader-char'), {
           y: ['110%', '0%'],
-          rotate: [(target) => (target.closest('.is-serif') ? 14 : -9), 0],
+          rotate: [(target) => (target.closest('.is-last') ? 14 : -9), 0],
           duration: 1000,
           ease: 'out(4)',
           delay: (target) => Number(target.style.getPropertyValue('--rank')) * 70,
@@ -146,8 +146,8 @@ export default function Loader({ onFinish }) {
     <div ref={root} className="loader" role="status" aria-label="Loading">
       <div className="loader-curtain" aria-hidden="true" />
       <p className="loader-name" aria-hidden="true">
-        <Word text={FIRST} offset={0} className="is-sans" />
-        <Word text={LAST} offset={FIRST.length} className="is-serif">
+        <Word text={FIRST} offset={0} className="is-first" />
+        <Word text={LAST} offset={FIRST.length} className="is-last">
           <span className="loader-dot">.</span>
         </Word>
       </p>

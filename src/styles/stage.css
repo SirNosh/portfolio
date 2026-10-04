@@ -21,7 +21,7 @@
   gap: 26px;
   background: radial-gradient(ellipse at 15% 0%, #29302d, #121614 75%);
   color: #f6f4f2;
-  font-family: Barlow, "Avenir Next", sans-serif;
+  font-family: var(--mono);
   overflow: hidden;
   border-radius: 16px;
   clip-path: polygon(0 0, 44% 0, 44% 4%, 56% 4%, 56% 0, 100% 0, 100% 100%, 0 100%);
@@ -30,8 +30,8 @@
 .laptop-screen .screen-name,
 .screen-fallback .screen-name {
   margin: 0;
-  font-weight: 600;
-  letter-spacing: -0.045em;
+  font-family: var(--display);
+  font-weight: 400;
   line-height: 0.95;
 }
 

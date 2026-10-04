@@ -332,17 +332,17 @@ function hardcoverTexture(book: BookLayout, image: CanvasImageSource) {
   context.globalAlpha = 0.65;
   context.strokeRect(610, 410, 332, 500);
   context.globalAlpha = 1;
-  context.font = "400 42px Georgia, serif";
+  context.font = '400 42px "Departure Mono", "IBM Plex Mono", monospace';
   const words = book.title.split(" ");
   words.forEach((word, index) => context.fillText(word, 642, 486 + index * 52));
-  context.font = "400 19px Georgia, serif";
+  context.font = '500 19px "IBM Plex Mono", ui-monospace, monospace';
   context.fillText("Dev Vyas", 642, 846);
   context.fillRect(476, 411, 72, 1);
   context.fillRect(476, 934, 72, 1);
   context.save();
   context.translate(526, 452);
   context.rotate(Math.PI / 2);
-  context.font = "400 31px Georgia, serif";
+  context.font = '400 31px "Departure Mono", "IBM Plex Mono", monospace';
   context.fillText(book.title, 0, 0);
   context.restore();
   const texture = new THREE.CanvasTexture(canvas);
@@ -436,8 +436,9 @@ function paintPage(page: NewsletterBookPage, pageNumber: number, total: number):
   let scale = 1;
   let chosen: { y: number; draw: (ctx: CanvasRenderingContext2D) => PageLinkHit[] } | null = null;
 
-  for (let attempt = 0; attempt < 7; attempt += 1) {
-    const titleSize = Math.round(118 * scale);
+  // Fine steps: monospace wraps ~25% more lines, so coarse steps overshoot the true fit.
+  for (let attempt = 0; attempt < 14; attempt += 1) {
+    const titleSize = Math.round(84 * scale);
     const bodySize = Math.round(46 * scale);
     const smallSize = Math.round(28 * scale);
     const lineGap = Math.round(14 * scale);
@@ -498,21 +499,21 @@ function paintPage(page: NewsletterBookPage, pageNumber: number, total: number):
       if (block.kind === "status") {
         pushText(block.text.toUpperCase(), `500 ${smallSize}px "IBM Plex Mono", ui-monospace, monospace`, smallSize, "#6d645b", lineGap);
       } else if (block.kind === "title") {
-        pushText(block.text, `600 ${titleSize}px Barlow, "Avenir Next", sans-serif`, titleSize, "#1b1916", Math.round(22 * scale), block.href);
+        pushText(block.text, `400 ${titleSize}px "Departure Mono", "IBM Plex Mono", monospace`, titleSize, "#1b1916", Math.round(22 * scale), block.href);
       } else if (block.kind === "working") {
-        pushText(block.text, `500 ${Math.round(bodySize * 0.92)}px Barlow, "Avenir Next", sans-serif`, Math.round(bodySize * 0.92), "#3d3832", lineGap);
+        pushText(block.text, `500 ${Math.round(bodySize * 0.92)}px "IBM Plex Mono", ui-monospace, monospace`, Math.round(bodySize * 0.92), "#3d3832", lineGap);
       } else if (block.kind === "body") {
-        pushText(block.text, `400 ${bodySize}px Barlow, "Avenir Next", sans-serif`, bodySize, "#241f1b", Math.round(18 * scale));
+        pushText(block.text, `400 ${bodySize}px "IBM Plex Mono", ui-monospace, monospace`, bodySize, "#241f1b", Math.round(18 * scale));
       } else if (block.kind === "pair") {
-        pushText(block.name, `600 ${bodySize}px Barlow, "Avenir Next", sans-serif`, bodySize, "#1b1916", Math.round(4 * scale));
-        pushText(block.detail, `400 ${Math.round(bodySize * 0.86)}px Barlow, "Avenir Next", sans-serif`, Math.round(bodySize * 0.86), "#3a342e", Math.round(12 * scale));
+        pushText(block.name, `600 ${bodySize}px "IBM Plex Mono", ui-monospace, monospace`, bodySize, "#1b1916", Math.round(4 * scale));
+        pushText(block.detail, `400 ${Math.round(bodySize * 0.86)}px "IBM Plex Mono", ui-monospace, monospace`, Math.round(bodySize * 0.86), "#3a342e", Math.round(12 * scale));
       } else if (block.kind === "step") {
-        pushText(block.text, `500 ${bodySize}px Barlow, "Avenir Next", sans-serif`, bodySize, "#241f1b", Math.round(8 * scale));
+        pushText(block.text, `500 ${bodySize}px "IBM Plex Mono", ui-monospace, monospace`, bodySize, "#241f1b", Math.round(8 * scale));
       } else if (block.kind === "quiet") {
-        pushText(block.text, `400 ${Math.round(bodySize * 0.86)}px Barlow, "Avenir Next", sans-serif`, Math.round(bodySize * 0.86), "#5e564c", Math.round(16 * scale));
+        pushText(block.text, `400 ${Math.round(bodySize * 0.86)}px "IBM Plex Mono", ui-monospace, monospace`, Math.round(bodySize * 0.86), "#5e564c", Math.round(16 * scale));
       } else if (block.kind === "link") {
         y += Math.round(8 * scale);
-        pushText(block.label, `600 ${Math.round(bodySize * 0.95)}px Barlow, "Avenir Next", sans-serif`, Math.round(bodySize * 0.95), "#1b1916", Math.round(12 * scale), block.href);
+        pushText(block.label, `600 ${Math.round(bodySize * 0.95)}px "IBM Plex Mono", ui-monospace, monospace`, Math.round(bodySize * 0.95), "#1b1916", Math.round(12 * scale), block.href);
       }
     }
 
@@ -532,7 +533,7 @@ function paintPage(page: NewsletterBookPage, pageNumber: number, total: number):
       };
       if (y <= height - padBottom) break;
     }
-    scale *= 0.88;
+    scale *= 0.95;
     y = padTop;
   }
 
@@ -702,15 +703,15 @@ function Book({
   } | null>(null);
   const selectedAt = useRef(0);
   const wasSelected = useRef(false);
-  const textures = useMemo(
-    () => ({
+  const textures = useMemo(() => {
+    void fontsReady;
+    return {
       atlas: hardcoverTexture(book, diffuse.image),
       cover: coverTexture(book, diffuse.image),
       paper: paperTexture(book),
       endpaper: endpaperTexture(),
-    }),
-    [book, diffuse],
-  );
+    };
+  }, [book, diffuse, fontsReady]);
 
   const geometry = useMemo(() => {
     const mesh = hardcover.scene.getObjectByName("hardcover") as THREE.Mesh;
@@ -1323,7 +1324,15 @@ export function NewsletterBookshelf({
     update();
     motion.addEventListener?.("change", update);
     let fontsLive = true;
-    const fonts = document.fonts?.ready;
+    // fonts.ready alone can resolve before a face the canvases use has even been requested.
+    const fonts = document.fonts
+      ? Promise.all([
+          document.fonts.load('400 42px "Departure Mono"'),
+          document.fonts.load('400 46px "IBM Plex Mono"'),
+          document.fonts.load('500 46px "IBM Plex Mono"'),
+          document.fonts.load('600 46px "IBM Plex Mono"'),
+        ]).then(() => document.fonts.ready)
+      : null;
     if (!fonts) setFontsReady(true);
     else fonts.then(() => {
       if (fontsLive) setFontsReady(true);

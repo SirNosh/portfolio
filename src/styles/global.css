@@ -52,9 +52,10 @@ a {
   position: relative;
 }
 
+/* No z-index here: main must not form a stacking context, so the shelf (z 3) can sit above the
+   laptop canvas (z 2) when it is seen through the display. */
 main {
   position: relative;
-  z-index: 1;
 }
 
 .engine {
@@ -207,7 +208,7 @@ main {
 
 .loader-name {
   font-family: var(--display);
-  font-weight: 400;
+  font-weight: 600;
 }
 
 .loader-char,
@@ -218,7 +219,7 @@ main {
 
 .loader-dot {
   /* A monospace full stop sits mid-cell; tuck it against the last letter. */
-  margin-left: -0.3em;
+  margin-left: -0.16em;
   color: var(--loader-accent);
 }
 

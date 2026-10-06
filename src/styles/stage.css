@@ -31,7 +31,7 @@
 .screen-fallback .screen-name {
   margin: 0;
   font-family: var(--display);
-  font-weight: 400;
+  font-weight: 600;
   line-height: 0.95;
 }
 
@@ -83,6 +83,114 @@
 .laptop-screen a:hover {
   color: #d8c6a4;
   border-color: #d8c6a4;
+}
+
+/* The laptop's Command-Tab switcher and Photos window (positioned per frame by Engine). */
+.screen-switcher {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 28px 30px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 34px;
+  background: rgba(38, 38, 40, 0.86);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switcher-apps {
+  position: relative;
+  display: flex;
+  gap: 28px;
+}
+
+/* The selection highlight: slides from Terminal to Photos like a real Tab press. */
+.switcher-apps::before {
+  content: "";
+  position: absolute;
+  top: -16px;
+  left: -16px;
+  width: 192px;
+  height: 192px;
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: transform 140ms ease-out;
+}
+
+.screen-switcher.is-photos .switcher-apps::before {
+  transform: translateX(188px);
+}
+
+.switcher-app {
+  position: relative;
+  width: 160px;
+  height: 160px;
+}
+
+.switcher-app svg {
+  width: 100%;
+  height: 100%;
+}
+
+.switcher-label {
+  position: relative;
+  height: 36px;
+  margin: 0;
+  overflow: hidden;
+  font-family: "Fira Code", ui-monospace, monospace;
+  font-size: 26px;
+  color: #ece8e1;
+}
+
+.switcher-label span {
+  display: block;
+  line-height: 36px;
+  text-align: center;
+  transition: transform 140ms ease-out;
+}
+
+.screen-switcher.is-photos .switcher-label span {
+  transform: translateY(-36px);
+}
+
+.screen-window {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #1c1c1e;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, calc(0.5 * var(--chrome, 1)));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.window-bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 38px;
+  padding: 0 16px;
+  opacity: var(--chrome, 1);
+  font-family: "Fira Code", ui-monospace, monospace;
+  font-size: 16px;
+  color: #a9a49b;
+}
+
+.window-bar i {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #5a5651;
+}
+
+.window-bar span {
+  flex: 1;
+  margin-right: 66px;
+  text-align: center;
 }
 
 .engine-fallback {
@@ -154,6 +262,25 @@
   position: fixed;
   inset: 0;
   z-index: 3;
+}
+
+.shelf-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Glare and edge falloff of the display glass, fading out as the camera passes through it. */
+.shelf-glass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--glass, 0);
+  background:
+    linear-gradient(118deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.04) 26%, transparent 46%),
+    radial-gradient(ellipse 80% 75% at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.2));
+  /* The bezel's shadow falling onto the glass gives the window its depth. */
+  box-shadow: inset 0 0 4vmin rgba(0, 0, 0, 0.2), inset 0 0 1vmin rgba(0, 0, 0, 0.28);
 }
 
 .shelf-fit {

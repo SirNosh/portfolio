@@ -57,6 +57,7 @@ body {
 
 .post-home {
   font-family: var(--display);
+  font-weight: 600;
   font-size: 1.05rem;
   color: var(--fg);
   text-decoration: none;
@@ -102,7 +103,7 @@ body {
 .post-body h2,
 .post-body h3 {
   font-family: var(--display);
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.12;
   scroll-margin-top: 1.5rem;
 }

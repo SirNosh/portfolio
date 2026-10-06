@@ -1,0 +1,42 @@
+{
+  "experience": {
+    "model": "assets/models/books/experience.glb",
+    "cover": "assets/models/books/experience-cover.jpg",
+    "size": [
+      0.02529,
+      0.19996,
+      0.17065
+    ],
+    "color": "#8f7a69"
+  },
+  "research": {
+    "model": "assets/models/books/research.glb",
+    "cover": "assets/models/books/research-cover.jpg",
+    "size": [
+      0.03869,
+      0.23742,
+      0.16306
+    ],
+    "color": "#824743"
+  },
+  "projects": {
+    "model": "assets/models/books/projects.glb",
+    "cover": "assets/models/books/projects-cover.jpg",
+    "size": [
+      0.03963,
+      0.22689,
+      0.15333
+    ],
+    "color": "#979da4"
+  },
+  "writings": {
+    "model": "assets/models/books/writings.glb",
+    "cover": "assets/models/books/writings-cover.jpg",
+    "size": [
+      0.02616,
+      0.22541,
+      0.15089
+    ],
+    "color": "#aab8af"
+  }
+}

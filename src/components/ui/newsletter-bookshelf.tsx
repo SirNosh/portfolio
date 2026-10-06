@@ -4,7 +4,8 @@
 
 import { cn } from "@/lib/utils";
 import { blendStudio, contactShadowMaterial, contactShadowTexture, createStudioEnvironment, isDarkTheme, watchTheme } from "@/lib/studio";
-import { stage, subscribeDriven, toShelf } from "@/lib/stage";
+import { stage, subscribeDriven } from "@/lib/stage";
+import bookModels from "@/app/bookModels.json";
 import { Canvas, type ThreeEvent, useFrame, useThree, useLoader } from "@react-three/fiber";
 import {
   type CSSProperties,
@@ -44,7 +45,7 @@ export interface NewsletterBookshelfItem {
   href?: string;
   color?: string;
   foil?: string;
-  /** 0 = new, 1 = heavily worn: rubbed edges, bumped corners, faded spine, stains, rubbed foil. */
+  /** 0 = new, 1 = heavily worn: rubbed edges, bumped corners, scuffs, a cup ring, flaked gold. */
   wear?: number;
   pages?: NewsletterBookPage[];
 }
@@ -173,20 +174,24 @@ function deriveLayout(items: NewsletterBookshelfItem[]) {
   return items.map<BookLayout>((item) => {
     const random = seeded(hash(item.id));
     const fallbackColor = PALETTE[Math.floor(random() * PALETTE.length)]!;
-    const width = 0.34 + random() * 0.3;
-    const bookHeight = 3.65 + (random() * 2 - 1) * 0.22;
+    const model = BOOK_MODELS[item.id];
+    // Baked books keep their scanned proportions; the tallest stands at the shelf's height.
+    const bookHeight = model ? 3.65 * model.size[1] / TALLEST : 3.65 + (random() * 2 - 1) * 0.22;
+    const width = model ? bookHeight * model.size[0] / model.size[1] : 0.34 + random() * 0.3;
     const color = item.color ?? fallbackColor;
     const foil =
       item.foil ?? (luminance(color) < 0.5 ? "#f2ead8" : "#3030ff");
     if (random() < 0.14) cursor += 0.2;
     const x = cursor + width / 2;
-    cursor += width + bookHeight * 0.48;
+    // Books stand turned toward the viewer, so each one's board depth sets the gap to the next.
+    const depth = model ? bookHeight * model.size[2] / model.size[1] : bookHeight * 0.67;
+    cursor += width + depth * 0.74;
     return {
       ...item,
       x,
       width,
       bookHeight,
-      depth: bookHeight * 0.67,
+      depth,
       motif: Math.floor(random() * 8),
       color,
       foil,
@@ -273,17 +278,6 @@ function paperTexture(book: BookLayout) {
   return texture;
 }
 
-function coverTexture(atlas: HTMLCanvasElement) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 768;
-  canvas.getContext("2d")!.drawImage(atlas, 580, 350, 425, 665, 0, 0, 512, 768);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 8;
-  return texture;
-}
-
 function endpaperTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 512;
@@ -316,360 +310,16 @@ function paperGeometry(width: number, height: number) {
   return geometry;
 }
 
-// Atlas regions of hardcover.glb, in canvas pixels (the canvas is v-flipped against the glTF
-// UVs). Each cover runs head (top) to tail; fore-edges sit at the outer x of each board.
-const ATLAS = {
-  back: { x0: 22, x1: 450 },
-  spine: { x0: 452, x1: 568 },
-  front: { x0: 572, x1: 988 },
-  head: 352,
-  tail: 1006,
-  pages: { x0: 25, x1: 1000, y0: 24, y1: 319 },
-};
+// Each shelf book is a scanned model baked offline by scripts/bake-books into its own GLB with
+// finished textures (titles, dye, wear), plus an upright front-cover image for the reader.
+type BookModel = { model: string; cover: string; size: [number, number, number]; color: string };
+const BOOK_MODELS = bookModels as Record<string, BookModel>;
+const TALLEST = Math.max(...Object.values(BOOK_MODELS).map((model) => model.size[1]));
+const assetUrl = (path: string) => import.meta.env.BASE_URL + path;
+const FALLBACK_MODEL = Object.keys(BOOK_MODELS)[0]!;
 
 function mixColor(from: string, to: string, amount: number) {
   return `#${new THREE.Color(from).lerp(new THREE.Color(to), THREE.MathUtils.clamp(amount, 0, 1)).getHexString()}`;
-}
-
-/**
- * Paints wear at `book.wear` (0..1) into either the colour atlas or its roughness map. Both
- * passes make the same random draws in the same order, so every rub, bump and stain lands on
- * the same texel in both maps; only the paint differs.
- */
-function paintWear(context: CanvasRenderingContext2D, book: BookLayout, pass: "color" | "rough") {
-  const wear = THREE.MathUtils.clamp(book.wear ?? 0, 0, 1);
-  if (wear <= 0) return;
-  const random = seeded(hash(`${book.id}-wear`));
-  const paint = (color: string, rough: string) => (pass === "color" ? color : rough);
-  const dab = (x: number, y: number, rx: number, ry: number, angle: number, alpha: number, color: string, rough: string) => {
-    context.globalAlpha = THREE.MathUtils.clamp(alpha, 0, 1);
-    context.fillStyle = paint(color, rough);
-    context.beginPath();
-    context.ellipse(x, y, Math.max(rx, 0.3), Math.max(ry, 0.3), angle, 0, Math.PI * 2);
-    context.fill();
-  };
-  // A soft radial blob: overlapping many at low alpha builds wear that reads as worn cloth,
-  // not as painted flecks.
-  const glow = (x: number, y: number, radius: number, alpha: number, color: string, rough: string) => {
-    const tone = paint(color, rough);
-    const gradient = context.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, `rgba(${tone}, ${THREE.MathUtils.clamp(alpha, 0, 1)})`);
-    gradient.addColorStop(1, `rgba(${tone}, 0)`);
-    context.globalAlpha = 1;
-    context.fillStyle = gradient;
-    context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-  };
-  const PALE = "228, 214, 188";
-  const GLOSS = "108, 108, 108";
-  const { back, spine, front, head, tail } = ATLAS;
-  const covers = [front, back];
-  const foreOf = (cover: typeof front) => (cover === front ? cover.x1 : cover.x0);
-  const inwardOf = (cover: typeof front) => (cover === front ? -1 : 1);
-  context.save();
-
-  // 1. Edge abrasion: cloth rubbed pale along each board's head, tail and fore-edge, spilling
-  //    over onto the board-thickness strips just outside the cover.
-  const edges = [
-    ...covers.flatMap((cover) => [
-      { x0: cover.x0, y0: head, x1: cover.x1, y1: head, nx: 0, ny: 1, weight: 1 },
-      { x0: cover.x0, y0: tail, x1: cover.x1, y1: tail, nx: 0, ny: -1, weight: 1 },
-      { x0: foreOf(cover), y0: head, x1: foreOf(cover), y1: tail, nx: inwardOf(cover), ny: 0, weight: 1.15 },
-    ]),
-    { x0: spine.x0, y0: head, x1: spine.x1, y1: head, nx: 0, ny: 1, weight: 1.4 },
-    { x0: spine.x0, y0: tail, x1: spine.x1, y1: tail, nx: 0, ny: -1, weight: 1.4 },
-    { x0: spine.x0, y0: head, x1: spine.x0, y1: tail, nx: 1, ny: 0, weight: 0.5 },
-    { x0: spine.x1, y0: head, x1: spine.x1, y1: tail, nx: -1, ny: 0, weight: 0.5 },
-  ];
-  const reach = 6 + 34 * wear;
-  for (const edge of edges) {
-    const length = Math.hypot(edge.x1 - edge.x0, edge.y1 - edge.y0);
-    // A continuous band: soft blobs every few pixels, mostly inside the cover, some spilling
-    // onto the board-thickness strip outside it.
-    const steps = Math.round(length / 5);
-    for (let index = 0; index < steps; index += 1) {
-      const t = (index + random()) / steps;
-      const depth = (random() - 0.2) * reach * 0.5;
-      const radius = 3 + random() * (6 + 16 * wear);
-      glow(edge.x0 + (edge.x1 - edge.x0) * t + edge.nx * depth, edge.y0 + (edge.y1 - edge.y0) * t + edge.ny * depth,
-        radius, (0.06 + random() * 0.14) * wear * edge.weight, PALE, GLOSS);
-    }
-    // Sparse fibres right at the edge, where the weave is broken.
-    for (let index = 0; index < Math.round(110 * wear * edge.weight * (length / 654)); index += 1) {
-      const t = random();
-      const depth = (random() ** 3) * 10;
-      const size = 0.6 + random() * 0.9;
-      context.globalAlpha = (0.12 + random() * 0.25) * wear;
-      context.fillStyle = paint(`rgb(${PALE})`, `rgb(${GLOSS})`);
-      context.fillRect(edge.x0 + (edge.x1 - edge.x0) * t + edge.nx * depth, edge.y0 + (edge.y1 - edge.y0) * t + edge.ny * depth, size, size);
-    }
-  }
-
-  // 2. Bumped corners: the board shows through at the fore-edge corners, with frayed cloth round it.
-  const corners = covers.flatMap((cover) => [
-    { x: foreOf(cover), y: head, sx: -inwardOf(cover), sy: 1 },
-    { x: foreOf(cover), y: tail, sx: -inwardOf(cover), sy: -1 },
-  ]);
-  for (const corner of corners) {
-    const size = (4 + 24 * wear) * (0.55 + random() * 0.9);
-    const ox = corner.x + corner.sx * 2;
-    const oy = corner.y - corner.sy * 2;
-    if (wear > 0.25) {
-      context.globalAlpha = 0.55 + 0.35 * wear;
-      context.fillStyle = paint("#5f4b37", "#c8c8c8");
-      context.beginPath();
-      context.moveTo(ox, oy);
-      for (let index = 0; index <= 10; index += 1) {
-        const a = (index / 10) * Math.PI * 0.5;
-        const r = size * (0.55 + random() * 0.6);
-        context.lineTo(ox - corner.sx * Math.cos(a) * r, oy + corner.sy * Math.sin(a) * r);
-      }
-      context.closePath();
-      context.fill();
-    }
-    for (let index = 0; index < Math.round(14 * wear); index += 1) {
-      const a = random() * Math.PI * 0.5;
-      const r = size * (0.6 + random() * 0.9);
-      glow(ox - corner.sx * Math.cos(a) * r, oy + corner.sy * Math.sin(a) * r, 4 + random() * 9, (0.12 + random() * 0.16) * wear, PALE, GLOSS);
-    }
-  }
-
-  // 3. Spine caps fray at head and tail, where a book is pulled from the shelf.
-  for (const capY of [head, tail]) {
-    const into = capY === head ? 1 : -1;
-    const capReach = 8 + 44 * wear;
-    for (let index = 0; index < Math.round(40 * wear); index += 1) {
-      const x = spine.x0 + random() * (spine.x1 - spine.x0);
-      const depth = (random() ** 1.6) * capReach;
-      glow(x, capY + into * depth, 4 + random() * 10, (0.08 + random() * 0.14) * wear * (1 - depth / capReach), PALE, GLOSS);
-    }
-    if (wear > 0.5) {
-      const x = spine.x0 + 20 + random() * (spine.x1 - spine.x0 - 40);
-      dab(x, capY + into * 3, 6 + 10 * wear, 3 + 4 * wear, 0, 0.6, "#5a4634", "#c4c4c4");
-    }
-  }
-
-  // 4. A sun-faded spine (the face a shelf exposes), with reading creases across it.
-  if (pass === "color") {
-    const fade = context.createLinearGradient(0, head, 0, tail);
-    fade.addColorStop(0, `rgba(230, 216, 188, ${0.1 + 0.3 * wear})`);
-    fade.addColorStop(1, `rgba(230, 216, 188, ${0.04 + 0.12 * wear})`);
-    context.globalAlpha = 1;
-    context.fillStyle = fade;
-    context.fillRect(spine.x0, head, spine.x1 - spine.x0, tail - head);
-  }
-  for (let index = 0; index < Math.floor(wear * 8); index += 1) {
-    const y = head + 50 + random() * (tail - head - 100);
-    const wobble = [random(), random(), random()];
-    context.globalAlpha = 0.18 + 0.3 * wear;
-    context.strokeStyle = paint("#e9ddc4", "#787878");
-    context.lineWidth = 0.8 + random() * 1.4;
-    context.beginPath();
-    context.moveTo(spine.x0 + 4, y);
-    context.bezierCurveTo(spine.x0 + 40, y + (wobble[0]! - 0.5) * 6, spine.x1 - 40, y + (wobble[1]! - 0.5) * 6, spine.x1 - 4, y + (wobble[2]! - 0.5) * 4);
-    context.stroke();
-  }
-
-  // 5. One faint cup ring on well-used books: partial, wobbly, darker where the liquid pooled,
-  //    so it reads as a stain rather than a drawn circle.
-  if (wear > 0.55) {
-    const cover = covers[Math.floor(random() * covers.length)]!;
-    const radius = 34 + random() * 26;
-    const cx = cover.x0 + radius + 30 + random() * (cover.x1 - cover.x0 - 2 * radius - 60);
-    const cy = head + radius + 60 + random() * (tail - head - 2 * radius - 120);
-    const start = random() * Math.PI * 2;
-    const sweep = Math.PI * (1.25 + random() * 0.6);
-    const pooled = random() * Math.PI * 2;
-    const segments = 48;
-    for (let index = 0; index < segments; index += 1) {
-      const a0 = start + (sweep * index) / segments;
-      const a1 = start + (sweep * (index + 1)) / segments;
-      const r = radius * (0.97 + random() * 0.06);
-      const heavy = 0.5 + 0.5 * Math.cos(a0 - pooled);
-      context.globalAlpha = (0.05 + 0.13 * heavy) * wear * (0.6 + random() * 0.4);
-      context.strokeStyle = paint("#3b2816", "#9a9a9a");
-      context.lineWidth = 1 + heavy * 3 * random();
-      context.beginPath();
-      context.arc(cx, cy, r, a0, a1);
-      context.stroke();
-    }
-    if (pass === "color") {
-      const tint = context.createRadialGradient(cx, cy, radius * 0.3, cx, cy, radius * 1.05);
-      tint.addColorStop(0, "rgba(60, 40, 22, 0)");
-      tint.addColorStop(0.85, `rgba(60, 40, 22, ${0.06 * wear})`);
-      tint.addColorStop(1, "rgba(60, 40, 22, 0)");
-      context.globalAlpha = 1;
-      context.fillStyle = tint;
-      context.fillRect(cx - radius * 1.1, cy - radius * 1.1, radius * 2.2, radius * 2.2);
-    }
-  }
-
-  // 6. Scuffs: short, faint and grouped where a book gets handled, never long straight lines.
-  for (let cluster = 0; cluster < Math.round(2 + 4 * wear); cluster += 1) {
-    const cover = covers[Math.floor(random() * covers.length)]!;
-    const cx = cover.x0 + 40 + random() * (cover.x1 - cover.x0 - 80);
-    const cy = head + 60 + random() * (tail - head - 120);
-    for (let index = 0; index < 1 + Math.round(7 * wear); index += 1) {
-      const x = cx + (random() - 0.5) * 70;
-      const y = cy + (random() - 0.5) * 70;
-      const length = 3 + random() * 16;
-      const angle = random() * Math.PI;
-      const bend = (random() - 0.5) * 4;
-      context.globalAlpha = (0.03 + random() * 0.06) * (0.6 + wear);
-      context.strokeStyle = paint(`rgb(${PALE})`, `rgb(${GLOSS})`);
-      context.lineWidth = 0.5 + random() * 0.6;
-      context.beginPath();
-      context.moveTo(x, y);
-      context.quadraticCurveTo(x + Math.cos(angle) * length / 2 - Math.sin(angle) * bend, y + Math.sin(angle) * length / 2 + Math.cos(angle) * bend,
-        x + Math.cos(angle) * length, y + Math.sin(angle) * length);
-      context.stroke();
-    }
-  }
-
-  // 7. Handling grime: perimeter darkening, heaviest where a hand holds the fore-edge.
-  for (const cover of covers) {
-    const fore = foreOf(cover);
-    if (pass === "color") {
-      const band = 54;
-      const shade = `rgba(32, 24, 15, ${0.28 * wear})`;
-      const gradients = [
-        context.createLinearGradient(fore, 0, fore + inwardOf(cover) * band, 0),
-        context.createLinearGradient(0, head, 0, head + band),
-        context.createLinearGradient(0, tail, 0, tail - band),
-      ];
-      for (const gradient of gradients) {
-        gradient.addColorStop(0, shade);
-        gradient.addColorStop(1, "rgba(32, 24, 15, 0)");
-        context.globalAlpha = 1;
-        context.fillStyle = gradient;
-        context.fillRect(cover.x0, head, cover.x1 - cover.x0, tail - head);
-      }
-    }
-    for (let index = 0; index < (wear > 0.4 ? 2 : 0); index += 1) {
-      const x = fore + inwardOf(cover) * (26 + random() * 30);
-      const y = (head + tail) / 2 + (random() - 0.5) * 300;
-      dab(x, y, 22 + random() * 14, 12 + random() * 8, Math.PI / 2 + (random() - 0.5) * 0.6, 0.06 * wear + 0.03, "#2a1f14", "#8c8c8c");
-    }
-  }
-
-  // 8. Page edges tan and fox with age.
-  const pages = ATLAS.pages;
-  if (pass === "color") {
-    context.globalCompositeOperation = "multiply";
-    context.globalAlpha = 1;
-    context.fillStyle = `rgba(214, 188, 140, ${0.18 + 0.5 * wear})`;
-    context.fillRect(pages.x0, pages.y0, pages.x1 - pages.x0, pages.y1 - pages.y0);
-    for (const [from, to] of [[pages.y0, pages.y0 + 40], [pages.y1, pages.y1 - 40]] as const) {
-      const edge = context.createLinearGradient(0, from, 0, to);
-      edge.addColorStop(0, `rgba(170, 128, 70, ${0.45 * wear})`);
-      edge.addColorStop(1, "rgba(170, 128, 70, 0)");
-      context.fillStyle = edge;
-      context.fillRect(pages.x0, Math.min(from, to), pages.x1 - pages.x0, 40);
-    }
-    context.globalCompositeOperation = "source-over";
-  }
-  for (let index = 0; index < Math.round(140 * wear); index += 1) {
-    dab(pages.x0 + random() * (pages.x1 - pages.x0), pages.y0 + random() * (pages.y1 - pages.y0),
-      0.6 + random() * 2.2, 0.6 + random() * 2.2, 0, (0.1 + random() * 0.25) * wear, "#8a5a2c", "#b8b8b8");
-  }
-  context.restore();
-}
-
-/** Foil lettering and rules on their own layer, so `wear` can rub them away before compositing. */
-function foilLayer(book: BookLayout) {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 1024;
-  const context = canvas.getContext("2d")!;
-  context.fillStyle = book.foil;
-  context.strokeStyle = book.foil;
-  context.textBaseline = "top";
-  context.lineWidth = 1;
-  context.globalAlpha = 0.65;
-  context.strokeRect(610, 410, 332, 500);
-  context.globalAlpha = 1;
-  context.font = '400 42px "Departure Mono", "Fira Code", monospace';
-  const words = book.title.split(" ");
-  words.forEach((word, index) => context.fillText(word, 642, 486 + index * 52));
-  context.font = '500 19px "Fira Code", ui-monospace, monospace';
-  context.fillText("Dev Vyas", 642, 846);
-  context.fillRect(476, 411, 72, 1);
-  context.fillRect(476, 934, 72, 1);
-  context.save();
-  context.translate(526, 452);
-  context.rotate(Math.PI / 2);
-  context.font = '400 31px "Departure Mono", "Fira Code", monospace';
-  context.fillText(book.title, 0, 0);
-  context.restore();
-  const intact = document.createElement("canvas");
-  intact.width = intact.height = 1024;
-  intact.getContext("2d")!.drawImage(canvas, 0, 0);
-  const wear = THREE.MathUtils.clamp(book.wear ?? 0, 0, 1);
-  if (wear > 0) {
-    // Foil flakes off in specks and wears through in patches where hands rest.
-    const random = seeded(hash(`${book.id}-foil`));
-    context.globalCompositeOperation = "destination-out";
-    for (let index = 0; index < Math.round(14000 * wear); index += 1) {
-      context.globalAlpha = 0.35 + random() * 0.65;
-      const size = 0.8 + random() * 2.4;
-      context.fillRect(470 + random() * 520, 400 + random() * 560, size, size);
-    }
-    for (let index = 0; index < Math.round(10 * wear); index += 1) {
-      const onSpine = index % 3 === 0;
-      const x = onSpine ? 476 + random() * 72 : 470 + random() * 520;
-      const y = 400 + random() * 560;
-      const r = 8 + random() * 30 * wear;
-      const patch = context.createRadialGradient(x, y, 0, x, y, r);
-      patch.addColorStop(0, `rgba(0, 0, 0, ${0.4 + 0.5 * wear})`);
-      patch.addColorStop(1, "rgba(0, 0, 0, 0)");
-      context.globalAlpha = 1;
-      context.fillStyle = patch;
-      context.fillRect(x - r, y - r, r * 2, r * 2);
-    }
-    context.globalCompositeOperation = "source-over";
-  }
-  return { intact, worn: canvas };
-}
-
-function hardcoverTexture(book: BookLayout, image: CanvasImageSource) {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 1024;
-  const context = canvas.getContext("2d")!;
-  context.drawImage(image, 0, 0, 1024, 1024);
-  context.globalCompositeOperation = "multiply";
-  context.globalAlpha = 0.65;
-  context.fillStyle = book.color;
-  context.fillRect(0, 332, 1024, 692);
-  context.globalCompositeOperation = "source-over";
-  context.globalAlpha = 1;
-  paintWear(context, book, "color");
-  const foil = foilLayer(book);
-  // Where the foil has flaked, the stamped impression still shows faintly.
-  context.globalAlpha = 0.2;
-  context.drawImage(foil.intact, 0, 0);
-  context.globalAlpha = 1;
-  context.drawImage(foil.worn, 0, 0);
-
-  // Roughness (read from green): cloth stays matte; rubbed cloth, foil and grease go glossier.
-  const roughCanvas = document.createElement("canvas");
-  roughCanvas.width = roughCanvas.height = 1024;
-  const rough = roughCanvas.getContext("2d")!;
-  rough.fillStyle = "#b8b8b8";
-  rough.fillRect(0, 0, 1024, 1024);
-  paintWear(rough, book, "rough");
-  const foilRough = document.createElement("canvas");
-  foilRough.width = foilRough.height = 1024;
-  const foilRoughContext = foilRough.getContext("2d")!;
-  foilRoughContext.drawImage(foil.worn, 0, 0);
-  foilRoughContext.globalCompositeOperation = "source-in";
-  foilRoughContext.fillStyle = "#585858";
-  foilRoughContext.fillRect(0, 0, 1024, 1024);
-  rough.drawImage(foilRough, 0, 0);
-
-  const color = new THREE.CanvasTexture(canvas);
-  color.colorSpace = THREE.SRGBColorSpace;
-  color.anisotropy = 8;
-  const roughness = new THREE.CanvasTexture(roughCanvas);
-  roughness.anisotropy = 8;
-  return { canvas, color, roughness };
 }
 
 function damp(current: number, target: number, speed: number, delta: number) {
@@ -820,7 +470,7 @@ function paintPage(page: NewsletterBookPage, pageNumber: number, total: number, 
       if (block.kind === "status") {
         pushText(block.text.toUpperCase(), `500 ${smallSize}px "Fira Code", ui-monospace, monospace`, smallSize, "#6d645b", lineGap);
       } else if (block.kind === "title") {
-        pushText(block.text, `400 ${titleSize}px "Departure Mono", "Fira Code", monospace`, titleSize, "#1b1916", Math.round(22 * scale), block.href);
+        pushText(block.text, `600 ${titleSize}px "Fira Code", ui-monospace, monospace`, titleSize, "#1b1916", Math.round(22 * scale), block.href);
       } else if (block.kind === "working") {
         pushText(block.text, `500 ${Math.round(bodySize * 0.92)}px "Fira Code", ui-monospace, monospace`, Math.round(bodySize * 0.92), "#3d3832", lineGap);
       } else if (block.kind === "body") {
@@ -985,13 +635,11 @@ function Book({
   const camera = useThree((state) => state.camera);
   const contact = useRef<THREE.Mesh>(null);
   const contactMaterial = useMemo(() => contactShadowMaterial(contactShadowTexture()), []);
-  const hardcover = useLoader(GLTFLoader, import.meta.env.BASE_URL + "assets/models/hardcover.glb");
-  const [diffuse, normal] = useLoader(THREE.TextureLoader, [
-    import.meta.env.BASE_URL + "assets/models/book-hardcover-diffuse.jpg",
-    import.meta.env.BASE_URL + "assets/models/book-hardcover-normal.jpg",
-  ]);
+  const spec = BOOK_MODELS[book.id] ?? BOOK_MODELS[FALLBACK_MODEL]!;
+  const baked = useLoader(GLTFLoader, assetUrl(spec.model));
+  const coverImage = useLoader(THREE.TextureLoader, assetUrl(spec.cover));
   const group = useRef<THREE.Group>(null);
-  const closedRef = useRef<THREE.Mesh>(null);
+  const closedRef = useRef<THREE.Group>(null);
   const openRig = useRef<THREE.Group>(null);
   const coverHinge = useRef<THREE.Group>(null);
   const flipHinge = useRef<THREE.Group>(null);
@@ -1020,47 +668,59 @@ function Book({
   } | null>(null);
   const selectedAt = useRef(0);
   const wasSelected = useRef(false);
-  const textures = useMemo(() => {
-    void fontsReady;
-    const hardcover = hardcoverTexture(book, diffuse.image);
-    return {
-      atlas: hardcover.color,
-      roughness: hardcover.roughness,
-      cover: coverTexture(hardcover.canvas),
-      paper: paperTexture(book),
-      endpaper: endpaperTexture(),
-    };
-  }, [book, diffuse, fontsReady]);
+  const textures = useMemo(() => ({
+    paper: paperTexture(book),
+    endpaper: endpaperTexture(),
+  }), [book]);
+  const leatherColor = spec.color;
+  useEffect(() => {
+    coverImage.colorSpace = THREE.SRGBColorSpace;
+    coverImage.anisotropy = 8;
+    coverImage.needsUpdate = true;
+  }, [coverImage]);
 
-  const geometry = useMemo(() => {
-    const mesh = hardcover.scene.getObjectByName("hardcover") as THREE.Mesh;
-    const geometry = mesh.geometry.clone();
-    // Wear in the unit box (x: covers at +-0.5, y: height, z: spine +0.5, fore-edge -0.5): boards
-    // cup outward toward the fore-edge, and the fore-edge corners soften where they were knocked.
-    // Original normals stay, so the shading isn't faceted.
+  // The baked meshes, fitted to the layout, with the model's own materials. Knocked fore-edge
+  // corners are a small vertex dent (original normals kept, so the shading isn't faceted).
+  const volume = useMemo(() => {
+    const parts: THREE.Mesh[] = [];
+    baked.scene.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) parts.push(child as THREE.Mesh);
+    });
+    const bounds = new THREE.Box3();
+    parts.forEach((part) => bounds.union(part.geometry.boundingBox ?? (part.geometry.computeBoundingBox(), part.geometry.boundingBox!)));
+    const center = bounds.getCenter(new THREE.Vector3());
+    const extent = bounds.getSize(new THREE.Vector3());
     const wear = THREE.MathUtils.clamp(book.wear ?? 0, 0, 1);
-    if (wear > 0) {
-      const random = seeded(hash(`${book.id}-shape`));
-      const dents = [-0.5, 0.5].map((y) => ({ y, depth: wear > 0.3 ? (0.4 + random() * 0.6) * wear : 0 }));
-      const position = geometry.attributes.position;
+    const random = seeded(hash(`${book.id}-shape`));
+    const dents = [-0.5, 0.5].map((y) => ({ y, depth: wear > 0.3 ? (0.4 + random() * 0.6) * wear : 0 }));
+    const meshes = parts.map((part) => {
+      const geometry = part.geometry.clone();
+      const position = geometry.attributes.position!;
       for (let index = 0; index < position.count; index += 1) {
-        let x = position.getX(index);
-        let y = position.getY(index);
-        let z = position.getZ(index);
-        if (Math.abs(x) > 0.4) x += Math.sign(x) * 0.06 * wear * (0.5 - z) * Math.sin(Math.PI * (y + 0.5));
+        const x = (position.getX(index) - center.x) / extent.x;
+        let y = (position.getY(index) - center.y) / extent.y;
+        let z = (position.getZ(index) - center.z) / extent.z;
         for (const dent of dents) {
           const falloff = Math.max(0, 1 - Math.hypot((y - dent.y) / 0.08, (z + 0.5) / 0.06));
-          z += falloff * falloff * 0.05 * dent.depth;
-          y -= Math.sign(dent.y) * falloff * falloff * 0.03 * dent.depth;
+          z += falloff * falloff * 0.04 * dent.depth;
+          y -= Math.sign(dent.y) * falloff * falloff * 0.02 * dent.depth;
         }
-        position.setXYZ(index, x, y, z);
+        position.setXYZ(index, x * book.width, y * book.bookHeight, z * book.depth);
       }
       position.needsUpdate = true;
+      geometry.computeBoundingBox();
+      geometry.computeBoundingSphere();
+      return { geometry, material: (part.material as THREE.MeshStandardMaterial).clone() };
+    });
+    return { meshes };
+  }, [baked, book.id, book.wear, book.width, book.bookHeight, book.depth]);
+
+  useEffect(() => {
+    for (const { material } of volume.meshes) {
+      material.depthTest = !selected;
+      material.depthWrite = !selected;
     }
-    geometry.scale(book.width, book.bookHeight, book.depth);
-    geometry.computeBoundingSphere();
-    return geometry;
-  }, [hardcover, book.bookHeight, book.depth, book.id, book.wear, book.width]);
+  }, [volume, selected]);
 
   const paints = useMemo(() => {
     if (!hasPages || typeof document === "undefined") return [];
@@ -1073,11 +733,14 @@ function Book({
   useEffect(() => {
     return () => {
       Object.values(textures).forEach((texture) => texture?.dispose());
-      geometry.dispose();
+      volume.meshes.forEach(({ geometry, material }) => {
+        geometry.dispose();
+        material.dispose();
+      });
       pageGeometry.dispose();
       turnGeometry.dispose();
     };
-  }, [geometry, textures, pageGeometry, turnGeometry]);
+  }, [volume, textures, pageGeometry, turnGeometry]);
 
   useEffect(() => () => {
     contactMaterial.alphaMap?.dispose();
@@ -1275,7 +938,9 @@ function Book({
     if (closedRef.current) {
       const showClosed = !hasPages || opened < 0.002;
       closedRef.current.visible = showClosed;
-      closedRef.current.raycast = showClosed ? THREE.Mesh.prototype.raycast : () => {};
+      closedRef.current.children.forEach((child) => {
+        (child as THREE.Mesh).raycast = showClosed ? THREE.Mesh.prototype.raycast : () => {};
+      });
     }
     if (openRig.current) {
       openRig.current.visible = hasPages && opened >= 0.002;
@@ -1358,25 +1023,16 @@ function Book({
       }}
       onClick={select}
     >
-      <mesh ref={closedRef} name="closed-book" geometry={geometry} castShadow receiveShadow renderOrder={selected ? 20 : 0}>
-        <meshPhysicalMaterial
-          map={textures.atlas}
-          normalMap={normal}
-          normalScale={new THREE.Vector2(0.7, 0.7)}
-          roughnessMap={textures.roughness}
-          roughness={1}
-          sheen={0.18}
-          sheenRoughness={0.85}
-          metalness={0.02}
-          depthTest={!selected}
-          depthWrite={!selected}
-        />
-      </mesh>
+      <group ref={closedRef} name="closed-book">
+        {volume.meshes.map(({ geometry, material }, part) => (
+          <mesh key={part} geometry={geometry} material={material} castShadow receiveShadow renderOrder={selected ? 20 : 0} />
+        ))}
+      </group>
       {hasPages ? (
         <group ref={openRig}>
           <mesh position={[-book.width / 2 + 0.035, 0, -book.depth / 2]} raycast={() => {}}>
             <boxGeometry args={[0.07, book.bookHeight, pageW * 1.035]} />
-            <meshStandardMaterial color={book.color} roughness={0.8} />
+            <meshStandardMaterial color={leatherColor} roughness={0.8} />
           </mesh>
           <mesh name="page-block" raycast={() => {}} position={[0, 0, -pageW / 2]}>
             <boxGeometry args={[book.width - 0.14, pageH, pageW]} />
@@ -1407,11 +1063,11 @@ function Book({
               }}>
               <boxGeometry args={[0.07, book.bookHeight, book.depth]} />
               <meshBasicMaterial attach="material-0" color="#e5dbc8" toneMapped={false} />
-              <meshStandardMaterial attach="material-1" map={textures.cover ?? undefined} roughness={0.8} />
-              <meshStandardMaterial attach="material-2" color={book.color} roughness={0.8} />
-              <meshStandardMaterial attach="material-3" color={book.color} roughness={0.8} />
-              <meshStandardMaterial attach="material-4" color={book.color} roughness={0.8} />
-              <meshStandardMaterial attach="material-5" color={book.color} roughness={0.8} />
+              <meshStandardMaterial attach="material-1" map={coverImage} roughness={0.75} />
+              <meshStandardMaterial attach="material-2" color={leatherColor} roughness={0.8} />
+              <meshStandardMaterial attach="material-3" color={leatherColor} roughness={0.8} />
+              <meshStandardMaterial attach="material-4" color={leatherColor} roughness={0.8} />
+              <meshStandardMaterial attach="material-5" color={leatherColor} roughness={0.8} />
             </mesh>
             <mesh position={[0.037, 0, pageW / 2]} rotation={[0, Math.PI / 2, 0]} geometry={pageGeometry} renderOrder={35} raycast={raycastOpen}
               onClick={(event) => {
@@ -1436,12 +1092,11 @@ function shelfDistance(span: number, aspect: number) {
 function CameraRig({ target, span }: { target: React.MutableRefObject<number>; span: number }) {
   const { camera } = useThree();
   const rest = useMemo(() => ({ position: new THREE.Vector3(), target: new THREE.Vector3(), fov: 35 }), []);
-  const look = useMemo(() => new THREE.Vector3(), []);
   useFrame((_, delta) => {
     const perspective = camera as THREE.PerspectiveCamera;
     const z = shelfDistance(span, perspective.aspect);
-    // Where this camera settles over the shelf. Engine's glide ends exactly here, so the
-    // hand-over below has nothing to correct.
+    // Where this camera settles over the shelf. Engine's dive through the laptop screen ends
+    // exactly here, so the hand-over below has nothing to correct.
     rest.position.set(target.current, 1.88 + z * 0.17, z);
     rest.target.set(target.current, 1.88, 0);
     stage.rest = rest;
@@ -1451,9 +1106,9 @@ function CameraRig({ target, span }: { target: React.MutableRefObject<number>; s
       perspective.updateProjectionMatrix();
     }
     if (stage.owner === "director" && stage.driven) {
-      // Mid-glide: the shared camera, mapped from the laptop's world into this one.
-      toShelf(stage.position, camera.position);
-      camera.lookAt(toShelf(stage.target, look));
+      // Mid-dive: the laptop's camera, mapped through its display into this world.
+      camera.position.copy(stage.shelfPosition);
+      camera.quaternion.copy(stage.shelfQuaternion);
       return;
     }
     camera.position.z = z;
@@ -1651,7 +1306,6 @@ export function NewsletterBookshelf({
     // fonts.ready alone can resolve before a face the canvases use has even been requested.
     const fonts = document.fonts
       ? Promise.all([
-          document.fonts.load('400 42px "Departure Mono"'),
           document.fonts.load('400 46px "Fira Code"'),
           document.fonts.load('500 46px "Fira Code"'),
           document.fonts.load('600 46px "Fira Code"'),
@@ -1766,7 +1420,7 @@ export function NewsletterBookshelf({
 
   const finishClosing = useCallback(() => setClosingIndex(null), []);
 
-  // Scrolling back toward the laptop closes an open book, so it doesn't float over the glide.
+  // Scrolling back toward the laptop closes an open book, so it doesn't float over the dive.
   useEffect(() => {
     const leave = () => {
       if (selectedIndex !== null) close();
@@ -1931,7 +1585,7 @@ export function NewsletterBookshelf({
         <Canvas
           frameloop={driven ? "never" : "always"}
           shadows="variance"
-          camera={{ fov: 35, near: 0.1, far: 60, position: [cameraX.current, 2.65, 10] }}
+          camera={{ fov: 35, near: 0.1, far: 400, position: [cameraX.current, 2.65, 10] }}
           dpr={[1, 2]}
           gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
           onPointerMissed={() => {

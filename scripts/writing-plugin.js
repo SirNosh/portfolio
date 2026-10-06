@@ -127,7 +127,6 @@ function renderPage(post, base, css) {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="preload" href="${base}assets/fonts/DepartureMono-Regular.woff2" as="font" type="font/woff2" crossorigin />
   <style>${css}</style>
 </head>
 <body>

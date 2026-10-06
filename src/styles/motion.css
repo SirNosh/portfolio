@@ -83,11 +83,6 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* The backdrop is a distant wall: it drifts a little as the camera glides past. */
-  .field-studio {
-    transform: translate3d(calc(var(--glide, 0) * -5%), 0, 0);
-  }
-
   .spectrum-slot {
     transform: translate3d(calc(var(--travel, 0) * 22px), calc(var(--travel, 0) * -64px), 0)
       rotate(calc(var(--travel, 0) * -10deg));

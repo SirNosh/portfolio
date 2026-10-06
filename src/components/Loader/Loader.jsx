@@ -60,7 +60,7 @@ export default function Loader({ onFinish }) {
     let cancelled = false
     // Wait for the face so the letters never rise in a fallback font.
     const fonts = document.fonts
-      ? document.fonts.load('400 64px "Departure Mono"')
+      ? document.fonts.load('600 64px "Fira Code"')
       : Promise.resolve()
     Promise.race([fonts, new Promise((resolve) => { setTimeout(resolve, 1500) })]).then(() => {
       if (cancelled) return

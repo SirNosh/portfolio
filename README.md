@@ -16,11 +16,11 @@ A MacBook sits in a photo studio with my name on the screen. As you scroll, the 
 
 React 19 · Vite · Three.js · React Three Fiber · anime.js · Tailwind CSS 4
 
-Type: [Departure Mono](https://departuremono.com/) (pixel, for the name and headings) and Fira Code (everything else). The book covers and pages are painted into canvas textures, so they're repainted once both fonts have loaded.
+Type: Fira Code throughout, SemiBold for the name and titles and Regular for everything else. The book covers and pages are painted into canvas textures, so they're repainted once both fonts have loaded.
 
 ## Editing content
 
-- Book pages: `src/app/books.js`. Each book's `wear` (0 = new, 1 = heavily worn) sets its rubbed edges, bumped corners, faded spine, stains, flaked foil and aged pages.
+- Book pages: `src/app/books.js`. Each book is its own scanned model (a leather binder, an oxblood leather volume, a cloth hardcover and a printed paperback), baked with its titles, colour and wear into `public/assets/models/books/` by `npm run bake:books` (`scripts/bake-books/`; sources are fetched from Poly Haven into a git-ignored cache). Re-run the bake after changing a title. `wear` in `books.js` still ages the paper inside each book.
 - Contact links on the laptop screen: `src/app/siteData.js`
 
 ## Publishing a post
@@ -58,4 +58,4 @@ The build uses `base: '/portfolio/'`. Every push to `main` deploys to GitHub Pag
 
 ## Credits
 
-The MacBook model was supplied by the owner. The hardcover mesh and textures are from Poly Haven's [Decorative Book Set 01](https://polyhaven.com/a/decorative_book_set_01) (CC0). Details are in `public/assets/models/CREDITS.md`. Departure Mono is by Helena Zhang, under the SIL Open Font License 1.1, which ships beside the font in `public/assets/fonts/`.
+The MacBook model was supplied by the owner. The books are CC0 scans from Poly Haven (Binder Notebook, Book Encyclopedia Set 01, Decorative Book Set 01). Details are in `public/assets/models/CREDITS.md`.

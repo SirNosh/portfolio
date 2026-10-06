@@ -26,3 +26,6 @@ dist-ssr
 # Private research state files
 project.md
 timeline.md
+
+# Book bake source cache (Poly Haven downloads)
+scripts/bake-books/.cache/

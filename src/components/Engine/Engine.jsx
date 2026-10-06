@@ -5,14 +5,14 @@ import { CSS3DObject, CSS3DRenderer } from 'three/addons/renderers/CSS3DRenderer
 import { advance } from '@react-three/fiber'
 import { contact } from '../../app/siteData'
 import { blendStudio, contactShadowMaterial, contactShadowTexture, createStudioEnvironment, isDarkTheme, watchTheme } from '../../lib/studio'
-import { fromShelf, setDriven, stage } from '../../lib/stage'
+import { setDriven, stage } from '../../lib/stage'
 
 function smooth(value) {
   const t = THREE.MathUtils.clamp(value, 0, 1)
   return t * t * (3 - 2 * t)
 }
 
-// Zero velocity and acceleration at both ends: the glide starts and settles without a jolt.
+// Zero velocity and acceleration at both ends: motion starts and settles without a jolt.
 function smoother(value) {
   const t = THREE.MathUtils.clamp(value, 0, 1)
   return t * t * t * (t * (t * 6 - 15) + 10)
@@ -71,6 +71,29 @@ function makeLaptop(model) {
   return { laptop, hinge, anchor }
 }
 
+// The display is 960 x 624 CSS3D pixels. Photo rect inside the Photos window (display aspect),
+// and the full display it grows into.
+const PHOTO = { x0: 74, y0: 72, x1: 886, y1: 600 }
+const DISPLAY = { x0: 0, y0: 0, x1: 960, y1: 624 }
+const lerpRect = (a, b, t) => ({ x0: a.x0 + (b.x0 - a.x0) * t, y0: a.y0 + (b.y0 - a.y0) * t, x1: a.x1 + (b.x1 - a.x1) * t, y1: a.y1 + (b.y1 - a.y1) * t })
+const scaleRect = (r, k) => {
+  const cx = (r.x0 + r.x1) / 2
+  const cy = (r.y0 + r.y1) / 2
+  return { x0: cx + (r.x0 - cx) * k, y0: cy + (r.y0 - cy) * k, x1: cx + (r.x1 - cx) * k, y1: cy + (r.y1 - cy) * k }
+}
+// Clip outline of a rect: chamfered corners and the camera notch (depth 0 = flat top edge). Always
+// 12 points, so the photo's outline and the display's interpolate cleanly.
+function outline(r, notch) {
+  const k = (r.x1 - r.x0) / 960
+  const c = 5 * k
+  const cx = (r.x0 + r.x1) / 2
+  return [[r.x0 + c, r.y0], [cx - 58 * k, r.y0], [cx - 58 * k, r.y0 + notch], [cx + 58 * k, r.y0 + notch], [cx + 58 * k, r.y0],
+    [r.x1 - c, r.y0], [r.x1, r.y0 + c], [r.x1, r.y1 - c], [r.x1 - c, r.y1], [r.x0 + c, r.y1], [r.x0, r.y1 - c], [r.x0, r.y0 + c]]
+}
+
+const TERMINAL_ICON = `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="2" y="2" width="60" height="60" rx="14" fill="#1b1d1c" stroke="#3a3d3b" stroke-width="2"/><path d="M16 22l10 9-10 9" fill="none" stroke="#e9e4da" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M30 42h16" stroke="#5cb8ae" stroke-width="4" stroke-linecap="round"/></svg>`
+const PHOTOS_ICON = `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="2" y="2" width="60" height="60" rx="14" fill="#f3efe7" stroke="#d8d1c4" stroke-width="2"/><circle cx="44" cy="20" r="6" fill="#e2a64a"/><path d="M8 50l16-18 10 11 8-8 14 15z" fill="#1f706b"/><path d="M8 50l16-18 10 11z" fill="#2c8a82"/></svg>`
+
 function screenElement() {
   const el = document.createElement('div')
   el.className = 'laptop-screen'
@@ -81,6 +104,16 @@ function screenElement() {
       <a href="${contact.github}" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
       <a href="${contact.linkedin}" target="_blank" rel="noopener noreferrer">LinkedIn <span aria-hidden="true">↗</span></a>
     </p>
+    <div class="screen-window" aria-hidden="true">
+      <div class="window-bar"><i></i><i></i><i></i><span>library.jpg</span></div>
+    </div>
+    <div class="screen-switcher" aria-hidden="true">
+      <div class="switcher-apps">
+        <div class="switcher-app">${TERMINAL_ICON}</div>
+        <div class="switcher-app">${PHOTOS_ICON}</div>
+      </div>
+      <p class="switcher-label"><span>Terminal</span><span>Photos</span></p>
+    </div>
   `
   return el
 }
@@ -165,9 +198,17 @@ export default function Engine() {
     const stopTheme = watchTheme((dark) => { darkTarget = dark ? 1 : 0 })
     const heroPosition = new THREE.Vector3()
     const heroTarget = new THREE.Vector3()
-    const restPosition = new THREE.Vector3()
-    const restTarget = new THREE.Vector3()
     const lookAt = new THREE.Vector3()
+    const screenCenter = new THREE.Vector3()
+    const screenUp = new THREE.Vector3()
+    const corner = new THREE.Vector3()
+    const endPosition = new THREE.Vector3()
+    const endQuaternion = new THREE.Quaternion()
+    const endInverse = new THREE.Quaternion()
+    const restQuaternion = new THREE.Quaternion()
+    const relative = new THREE.Vector3()
+    const basis = new THREE.Matrix4()
+    const worldUp = new THREE.Vector3(0, 1, 0)
     // Last rendered state: the laptop canvas only redraws when something it shows changed.
     const drawn = { signature: '', dirty: true }
     const screenNormal = new THREE.Vector3()
@@ -201,50 +242,122 @@ export default function Engine() {
       // The shelf renders in this same tick from the pose just published (frameloop "never").
       advance(now / 1000)
     }
-    // One camera through one studio: the lid closes, then the camera glides across the floor to
-    // the books. Overlapping the close and the glide keeps the move continuous.
+    const screenWindow = screenEl.querySelector('.screen-window')
+    const switcher = screenEl.querySelector('.screen-switcher')
+    const windowCenter = new THREE.Vector3()
+    const windowEnd = new THREE.Vector3()
+    // Command-Tab: the app switcher comes up over your name, the selection moves from Terminal to
+    // Photos, and a Photos window opens on a picture of the library taken from exactly where the
+    // camera is headed. The photo goes full screen and the camera dives into it. The photo is the
+    // shelf canvas clipped to the photo's projected outline and drawn from this camera mapped
+    // through it, so it holds still like a print, then opens into real depth as you go in.
     const direct = () => {
       const progress = THREE.MathUtils.clamp(travel, 0, 1)
-      const close = smooth((progress - 0.04) / 0.34)
-      const glide = smoother((progress - 0.3) / 0.66)
-      const look = smoother((progress - 0.3) / 0.58)
-      // No separate push-in: it would carry the laptop up and right just before the glide carries
-      // it left. The glide's own dolly is the only camera travel, so motion never reverses.
-      // The camera only settles low once the lid is low, so the rising-then-folding lid stays in frame.
-      const heroY = THREE.MathUtils.lerp(0.78, -0.28, close * close)
-      const heroX = (rig?.closedCenterX ?? 0) * close
-      heroPosition.set(heroX, heroY + distance * 0.28, distance)
-      heroTarget.set(heroX, heroY, -0.25)
-      if (stage.rest) {
-        fromShelf(stage.rest.position, restPosition)
-        fromShelf(stage.rest.target, restTarget)
-      } else {
-        restPosition.copy(heroPosition)
-        restTarget.copy(heroTarget)
+      const summon = smooth((progress - 0.04) / 0.04)
+      const release = smooth((progress - 0.145) / 0.015)
+      const switched = progress >= 0.11
+      // The window snaps open just as the switcher lets go, as on a real Mac: no cross-fade.
+      const open = smoother((progress - 0.155) / 0.025)
+      // Opaque almost at once; the scale carries the motion, so nothing shows through it.
+      const shown = Math.min(1, open * 5)
+      const expand = smoother((progress - 0.23) / 0.13)
+      const dive = smoother((progress - 0.27) / 0.67)
+      const look = smoother((progress - 0.24) / 0.45)
+      heroPosition.set(0, 0.78 + distance * 0.28, distance)
+      heroTarget.set(0, 0.78, -0.25)
+      if (!rig) {
+        camera.position.copy(heroPosition)
+        camera.lookAt(heroTarget)
+        return
       }
-      // A gentle crane up and dolly back on the way, so the camera travels through the space.
-      const arc = reduce.matches ? 0 : Math.sin(Math.PI * glide)
-      stage.position.lerpVectors(heroPosition, restPosition, glide)
-      stage.position.y += arc * 0.6
-      stage.position.z += arc * 1.2
-      // The view turns toward the books slightly ahead of the camera's travel.
-      stage.target.lerpVectors(heroTarget, restTarget, look)
-      stage.fov = THREE.MathUtils.lerp(32, stage.rest?.fov ?? 32, glide)
-      stage.owner = glide >= 1 - 1e-4 ? 'shelf' : 'director'
-      const arrived = glide >= 0.98
+      // The display's frame in world space: the CSS3D anchor, +z facing the viewer, 1 unit = 1 px.
+      rig.anchor.updateWorldMatrix(true, false)
+      const frameMatrix = rig.anchor.matrixWorld
+      screenCenter.setFromMatrixPosition(frameMatrix)
+      screenUp.set(0, 1, 0).transformDirection(frameMatrix)
+      screenNormal.set(0, 0, 1).transformDirection(frameMatrix)
+      const pixel = corner.set(1, 0, 0).applyMatrix4(frameMatrix).distanceTo(screenCenter)
+      const restFov = stage.rest?.fov ?? 35
+      const tanHalf = Math.tan(THREE.MathUtils.degToRad(restFov / 2))
+      // Square-on distance at which a rect on the display just covers the viewport, or (contain)
+      // just fits inside it. The photo is framed to contain the library's resting view, so on a
+      // tall phone it isn't a wide shot with tiny books; it blends to cover by the dive's end.
+      const fitDistance = (r, contain = false) => {
+        const byHeight = ((r.y1 - r.y0) / 2) * pixel / tanHalf
+        const byWidth = ((r.x1 - r.x0) / 2) * pixel / (tanHalf * camera.aspect)
+        return (contain ? Math.max(byHeight, byWidth) : Math.min(byHeight, byWidth)) * 0.96
+      }
+      const endDistance = fitDistance(DISPLAY)
+      endPosition.copy(screenCenter).addScaledVector(screenNormal, endDistance)
+      camera.position.lerpVectors(heroPosition, endPosition, dive)
+      lookAt.lerpVectors(heroTarget, screenCenter, look)
+      camera.up.copy(worldUp).lerp(screenUp, dive).normalize()
+      camera.lookAt(lookAt)
+      const fov = THREE.MathUtils.lerp(32, restFov, dive)
+      if (camera.fov !== fov) {
+        camera.fov = fov
+        camera.updateProjectionMatrix()
+      }
+      camera.updateMatrixWorld()
+
+      // The photo: a rect on the display that opens with the window and grows to the full display.
+      const photo = scaleRect(lerpRect(PHOTO, DISPLAY, expand), 0.88 + 0.12 * open)
+      // The view maps the pose that would frame the photo square-on onto the shelf's resting pose,
+      // so the photo always shows the library's resting composition; as the photo grows to the
+      // display this becomes the dive's own end pose, and the camera arrives exactly at rest.
+      if (stage.rest) {
+        windowCenter.set((photo.x0 + photo.x1) / 2 - 480, 312 - (photo.y0 + photo.y1) / 2, 0).applyMatrix4(frameMatrix)
+        // Blended over the dive rather than the expand, so the camera's approach outpaces the
+        // reframing and the books only ever grow.
+        const windowDistance = THREE.MathUtils.lerp(fitDistance(photo, true), fitDistance(photo), dive)
+        windowEnd.copy(windowCenter).addScaledVector(screenNormal, windowDistance)
+        endQuaternion.setFromRotationMatrix(basis.lookAt(windowEnd, windowCenter, screenUp))
+        endInverse.copy(endQuaternion).invert()
+        restQuaternion.setFromRotationMatrix(basis.lookAt(stage.rest.position, stage.rest.target, worldUp))
+        // The books start on the glass plane, so the photo is a flat print of the resting view;
+        // pulling that plane back toward the camera over the dive brings real depth in.
+        const depth = THREE.MathUtils.lerp(1, 0.6, smooth(dive / 0.8))
+        const scale = depth * stage.rest.position.distanceTo(stage.rest.target) / windowDistance
+        relative.copy(camera.position).sub(windowEnd).applyQuaternion(endInverse).multiplyScalar(scale)
+        stage.shelfPosition.copy(relative).applyQuaternion(restQuaternion).add(stage.rest.position)
+        stage.shelfQuaternion.copy(restQuaternion).multiply(endInverse).multiply(camera.quaternion)
+        stage.fov = fov
+      }
+      stage.owner = dive >= 1 - 1e-4 ? 'shelf' : 'director'
+      const arrived = dive >= 0.98
       if (shelf.inert === arrived) {
         shelf.inert = !arrived
         if (!arrived) window.dispatchEvent(new Event('portfolio:leave-shelf'))
       }
-      document.documentElement.style.setProperty('--glide', glide.toFixed(4))
-      camera.position.copy(stage.position)
-      camera.lookAt(lookAt.copy(stage.target))
-      if (camera.fov !== stage.fov) {
-        camera.fov = stage.fov
-        camera.updateProjectionMatrix()
+
+      if (stage.owner === 'shelf') {
+        shelf.style.clipPath = 'none'
+      } else {
+        const width = el.clientWidth
+        const height = el.clientHeight
+        // The notch grows in as the photo fills the display, then retracts as you pass the glass.
+        const notch = 25 * expand * (1 - smooth((dive - 0.7) / 0.3))
+        shelf.style.clipPath = `polygon(${outline(photo, notch).map(([x, y]) => {
+          corner.set(x - 480, 312 - y, 0).applyMatrix4(frameMatrix).project(camera)
+          return `${(((corner.x + 1) / 2) * width).toFixed(1)}px ${(((1 - corner.y) / 2) * height).toFixed(1)}px`
+        }).join(',')})`
       }
-      if (!rig) return
-      rig.hinge.rotation.x = close * 1.92
+      shelf.style.opacity = stage.owner === 'shelf' ? '1' : shown.toFixed(3)
+      shelf.style.setProperty('--glass', (shown * (1 - smooth((dive - 0.55) / 0.4))).toFixed(3))
+
+      // The screen's own UI: the switcher, then the Photos window around the photo.
+      switcher.style.opacity = (summon * (1 - release)).toFixed(3)
+      switcher.style.transform = `translate(-50%, -50%) scale(${(0.96 + 0.04 * summon).toFixed(4)})`
+      switcher.classList.toggle('is-photos', switched)
+      const chrome = 1 - expand
+      screenWindow.style.opacity = shown.toFixed(3)
+      screenWindow.style.left = `${photo.x0 - 12 * chrome}px`
+      screenWindow.style.top = `${photo.y0 - 38 * chrome}px`
+      screenWindow.style.width = `${photo.x1 - photo.x0 + 24 * chrome}px`
+      screenWindow.style.height = `${photo.y1 - photo.y0 + 50 * chrome}px`
+      screenWindow.style.borderRadius = `${12 * chrome}px`
+      screenWindow.style.setProperty('--chrome', chrome.toFixed(3))
+
       const studio = blendStudio(mix)
       hemisphere.intensity = 1.1 * studio.ambient
       key.intensity = 3 * studio.key
@@ -256,16 +369,16 @@ export default function Engine() {
       contactShadow.material.opacity = studio.contact
       contactShadow.scale.set(1.45 * 4, 1.04 * 4, 1)
       contactShadow.rotation.y = -0.22
-      rig.anchor.updateWorldMatrix(true, false)
-      rig.anchor.matrixWorld.decompose(cssScreen.position, cssScreen.quaternion, cssScreen.scale)
-      screenNormal.set(0, 0, 1).applyQuaternion(cssScreen.quaternion)
+      frameMatrix.decompose(cssScreen.position, cssScreen.quaternion, cssScreen.scale)
       screenToCamera.copy(camera.position).sub(cssScreen.position).normalize()
-      cssScreen.visible = screenNormal.dot(screenToCamera) > 0.05 && close < 0.98
-      screenEl.style.pointerEvents = cssScreen.visible ? 'auto' : 'none'
-      screenEl.setAttribute('aria-hidden', String(!cssScreen.visible))
-      screenEl.querySelectorAll('a').forEach((link) => { link.tabIndex = cssScreen.visible ? 0 : -1 })
-      const signature = [...camera.position.toArray(), ...stage.target.toArray(), camera.fov, close, mix]
-        .map((value) => value.toFixed(5)).join()
+      cssScreen.visible = screenNormal.dot(screenToCamera) > 0.05 && expand < 0.999
+      // Your links stay usable until the switcher comes up.
+      const live = cssScreen.visible && summon < 0.5
+      screenEl.style.pointerEvents = live ? 'auto' : 'none'
+      screenEl.setAttribute('aria-hidden', String(!live))
+      screenEl.querySelectorAll('a').forEach((link) => { link.tabIndex = live ? 0 : -1 })
+      const signature = [...camera.position.toArray(), ...camera.quaternion.toArray(), camera.fov, mix, summon, release, switched, open, expand]
+        .map((value) => Number(value).toFixed(5)).join()
       if (drawn.dirty || signature !== drawn.signature) {
         drawn.signature = signature
         drawn.dirty = false
@@ -278,12 +391,6 @@ export default function Engine() {
       rig = makeLaptop(model)
       rig.laptop.quaternion.setFromEuler(new THREE.Euler(0, -0.22, 0))
       rig.laptop.position.y = 0.075
-      // The yawed model's mass shifts right as the lid folds; the camera follows that centre so
-      // the closed laptop holds still and the glide is the only sideways motion.
-      rig.hinge.rotation.x = 1.92
-      rig.laptop.updateMatrixWorld(true)
-      rig.closedCenterX = new THREE.Box3().setFromObject(rig.laptop).getCenter(new THREE.Vector3()).x
-      rig.hinge.rotation.x = 0
       scene.add(rig.laptop)
       drawn.dirty = true
       // Compile shaders and draw a frame before the loader lets go: the first frame of this

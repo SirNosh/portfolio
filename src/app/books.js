@@ -152,7 +152,7 @@ export const shelfBooks = [
     pages: [
       {
         title: 'NOSH',
-        href: links.nosh,
+        href: links.noshSite,
         status: 'Active development',
         workingTitle: 'Networked Orchestrated Science Harness',
         paragraphs: [
@@ -172,7 +172,7 @@ export const shelfBooks = [
           'Outputs are supposed to become maintained, evidence-linked research state. Not another transcript that disappears when the chat does.',
         ],
         quiet: 'Not release-ready. Validation, security, accessibility, device, relay, and soak-test gates are still open.',
-        links: [{ href: links.nosh, label: 'Code' }],
+        links: [{ href: links.noshSite, label: 'Website' }, { href: links.nosh, label: 'Code' }],
         aside: 'Agents can move quickly. Research still has to remain true.',
       },
       {
